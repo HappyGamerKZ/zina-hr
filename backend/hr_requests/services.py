@@ -8,7 +8,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from core import events
 from hr_requests import state_machine
-from integrations import services as accounting
+from integrations import outbox
 from hr_requests.models import (
     RESERVING_STATUSES,
     VACATION_BLOCKING_STATUSES,
@@ -164,18 +164,18 @@ def apply_transition(user, req: HrRequest, action: str, comment: str = "") -> Hr
 
 
 def _finalize_approved(req: HrRequest) -> str:
-    """Утверждённая заявка уходит в 1С / бухгалтерию (mock); дни отпуска списываются из остатка."""
+    """Утверждённая заявка ставится в очередь отправки во внешние системы (integrations/outbox.py).
+
+    Дни отпуска сразу списываются из остатка, чтобы сотрудник видел актуальное число;
+    при следующей синхронизации с 1С:ЗУП остаток приходит из ЗУП (источник истины).
+    """
     if req.type == RequestType.VACATION and req.vacation.vacation_type == VacationType.ANNUAL:
-        # Имитация проводки в 1С:ЗУП: в боевом режиме days_used придёт синхронизацией.
         LeaveBalance.objects.filter(employee=req.employee, leave_type="annual").update(
             days_used=F("days_used") + req.vacation.days
         )
-    export = accounting.send_to_accounting(req)
-    if export.status != export.ExportStatus.SENT:
-        return "Ошибка передачи в 1С — см. журнал интеграций"
-    req.external_accounting_id = export.external_id
-    req.save(update_fields=["external_accounting_id", "updated_at"])
-    return f"Передано в 1С / бухгалтерию, документ № {export.external_id}"
+    tasks = outbox.enqueue_approved(req)
+    systems = ", ".join(t.get_target_display() for t in tasks)
+    return f"Передаётся в: {systems}"
 
 
 def _publish(req: HrRequest, old_status: str, actor) -> None:

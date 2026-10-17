@@ -82,9 +82,11 @@ class ApprovalFlowTests(APITestCase):
         self.assertEqual(res.status_code, 200, res.data)
         self.assertEqual(res.data["status"], Status.WAITING_HR_APPROVAL)
 
-        res = self.act(self.hr, req["id"], "approve-hr")
+        with self.captureOnCommitCallbacks(execute=True):  # отправка в 1С — сразу после коммита (outbox)
+            res = self.act(self.hr, req["id"], "approve-hr")
         self.assertEqual(res.status_code, 200, res.data)
         self.assertEqual(res.data["status"], Status.APPROVED_SENT_TO_1C)
+        res = self.client.get(f"/api/v1/requests/{req['id']}")
         self.assertTrue(res.data["external_accounting_id"].startswith("BUH-"))
         self.assertEqual(AccountingExport.objects.filter(request_id=req["id"]).count(), 1)
         # дни отпуска списаны (mock проводки в 1С:ЗУП)
@@ -102,7 +104,9 @@ class ApprovalFlowTests(APITestCase):
         self.assertEqual(res.data["status"], Status.APPROVED_SENT_TO_1C)
 
     def test_head_of_hr_without_manager_is_approved_immediately(self):
-        req = self.create_advance(self.hr_head)
+        with self.captureOnCommitCallbacks(execute=True):
+            req = self.create_advance(self.hr_head)
+        req = self.client.get(f"/api/v1/requests/{req['id']}").data
         self.assertEqual(req["status"], Status.APPROVED_SENT_TO_1C)
         self.assertTrue(req["external_accounting_id"].startswith("BUH-"))
 

@@ -62,6 +62,7 @@ class HrRequestDetailSerializer(HrRequestListSerializer):
     class Meta(HrRequestListSerializer.Meta):
         fields = HrRequestListSerializer.Meta.fields + [
             "events", "allowed_actions", "external_doc_id", "external_zup_id", "external_accounting_id",
+            "doc_status", "doc_registration_number",
         ]
 
     def get_allowed_actions(self, req) -> list[str]:

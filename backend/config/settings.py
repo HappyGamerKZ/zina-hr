@@ -136,6 +136,27 @@ ADVANCE_MAX_AMOUNT = 500_000
 # Куда уходят утверждённые HR заявки. mock_accounting — заглушка (integrations/adapters.py).
 ACCOUNTING_PROVIDER = os.environ.get("ACCOUNTING_PROVIDER", "mock_accounting")
 
+# 1С:ЗУП и Documentolog (integrations/ports.py). По умолчанию — без сети (тесты, запуск без заглушек);
+# в docker compose — HTTP-заглушки mocks/zup и mocks/documentolog.
+HRIS_PROVIDER = os.environ.get("HRIS_PROVIDER", "inmemory")  # zup_http | inmemory | none
+ZUP_BASE_URL = os.environ.get("ZUP_BASE_URL", "http://mock-zup:8001")
+ZUP_USER = os.environ.get("ZUP_USER", "janamen")
+ZUP_PASSWORD = os.environ.get("ZUP_PASSWORD", "")
+
+DOCFLOW_PROVIDER = os.environ.get("DOCFLOW_PROVIDER", "inmemory")  # documentolog_http | inmemory | none
+DOCUMENTOLOG_BASE_URL = os.environ.get("DOCUMENTOLOG_BASE_URL", "http://mock-documentolog:8002")
+DOCUMENTOLOG_TOKEN = os.environ.get("DOCUMENTOLOG_TOKEN", "")
+DOCUMENTOLOG_WEBHOOK_SECRET = os.environ.get("DOCUMENTOLOG_WEBHOOK_SECRET", "dev-webhook-secret")
+# Адрес backend, по которому внешние системы присылают обратные вызовы
+BACKEND_PUBLIC_URL = os.environ.get("BACKEND_PUBLIC_URL", "http://backend:8000")
+
+# Outbox: повторы отправки во внешние системы
+OUTBOX_MAX_ATTEMPTS = int(os.environ.get("OUTBOX_MAX_ATTEMPTS", "8"))
+
+# Тесты никогда не ходят в сеть: внешние системы подменяются адаптерами inmemory
+if len(sys.argv) > 1 and sys.argv[1] == "test":
+    HRIS_PROVIDER = DOCFLOW_PROVIDER = "inmemory"
+
 # Тема Django Admin (django-unfold): меню по разделам HR-платформы
 from django.urls import reverse_lazy  # noqa: E402
 
@@ -165,6 +186,10 @@ UNFOLD = {
             {"title": "Заявки", "items": [
                 _admin_link("Заявки", "description", "hr_requests.hrrequest"),
                 _admin_link("Передачи в 1С / бухгалтерию", "receipt_long", "integrations.accountingexport"),
+            ]},
+            {"title": "Интеграции", "items": [
+                _admin_link("Очередь отправок (1С, Documentolog)", "outbox", "integrations.outboxtask"),
+                _admin_link("Синхронизация с 1С:ЗУП", "sync", "integrations.syncrun"),
                 _admin_link("Уведомления", "notifications", "notifications.notification"),
             ]},
             {"title": "Люди и структура", "items": [

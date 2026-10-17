@@ -4,6 +4,7 @@
 
 - Требования кейса: [SPEC.md](SPEC.md)
 - Архитектура, схема БД, места интеграции 1С:ЗУП и Documentolog: [ARCHITECTURE.md](ARCHITECTURE.md)
+- Изменения API для фронтенда: [API_CHANGES.md](API_CHANGES.md)
 
 ## Запуск
 
@@ -26,6 +27,38 @@ docker compose up --build
 ```bash
 docker compose exec backend python manage.py seed --reset
 ```
+
+### Интеграции (заглушки 1С:ЗУП и Documentolog)
+
+`docker compose up` поднимает и заглушки внешних систем, и `worker`, который досылает отправки:
+
+| Сервис | Адрес | Что делает |
+|---|---|---|
+| `mock-zup` | http://localhost:8001 | 1С:ЗУП: сотрудники, оргструктура, остатки отпуска (`/hs/janamen/v1/snapshot`), документы «Отпуск» |
+| `mock-documentolog` | http://localhost:8002 | Documentolog: принимает приказ и через 10 с «подписывает» его — присылает обратный вызов в backend |
+| `worker` | — | повторяет отправки, если внешняя система была недоступна |
+
+Что показать на демо:
+
+- **Заявка до подписанного приказа.** Утвердите отпуск (сотрудник → руководитель → HR). В истории заявки появятся документы бухгалтерии, 1С:ЗУП и Documentolog, через ~10 с — «приказ подписан» и уведомление сотруднику.
+- **Синхронизация с 1С:ЗУП.** «Кадровик меняет должность в 1С»:
+
+```bash
+curl -X PATCH -H "Content-Type: application/json" -d "{\"position_code\":\"ZUP-POS-06\"}" http://localhost:8001/__mock/employees/T-0004
+```
+
+  Затем Django Admin → «Синхронизация с 1С:ЗУП» → «Синхронизировать сейчас»: у `employee` в профиле новая должность. Вернуть данные заглушки: `curl -X POST http://localhost:8001/__mock/reset`.
+- **Устойчивость.** Остановите Documentolog и утвердите заявку: утверждение проходит, задача ждёт в «Очереди отправок». Запустите Documentolog — worker дошлёт приказ.
+
+```bash
+docker compose stop mock-documentolog
+```
+
+```bash
+docker compose start mock-documentolog
+```
+
+Журналы: Django Admin → «Интеграции» → «Очередь отправок» и «Синхронизации с 1С:ЗУП». Подключение боевых систем — ARCHITECTURE.md §7.4.
 
 ### Режим разработки (Docker, без пересборки)
 
@@ -119,9 +152,10 @@ docker compose exec backend python manage.py seed_users
 | Django Admin для HR | ✅ |
 | Jana Academy: каталог, запись, назначение (HR / руководитель), уроки из блоков (текст, заголовки, фото, видео, YouTube, файлы), уроки по порядку, тесты 4 типов с проверкой на сервере и перетаскиванием на телефоне, попытки, повторное прохождение и переназначение, прогресс в профиле, уведомления, конструктор уроков в Django Admin | ✅ полностью, покрыто тестами (`python manage.py test academy`) |
 | AI Jana (RAG по базе знаний) | ⏳ следующий этап (§8) |
-| Передача в бухгалтерию после утверждения HR | 🧩 mock: `integrations/adapters.py` (`MockAccountingAdapter`), журнал в Django Admin; боевой адаптер — через `ACCOUNTING_PROVIDER` |
-| Интеграция 1С:ЗУП | 🧩 mock: следующий этап — контейнер `mock-1c-zup` + адаптер `HRISProvider` (§7) |
-| Интеграция Documentolog | 🧩 mock: следующий этап — контейнер `mock-documentolog` + webhook → статус `registered` (§7) |
+| Передача утверждённых заявок во внешние системы через очередь (outbox) с повторами, worker, журнал и «Отправить повторно» в админке | ✅ полностью, покрыто тестами (`python manage.py test integrations`) |
+| Бухгалтерия | 🧩 заглушка в процессе (`MockAccountingAdapter`) |
+| 1С:ЗУП: синхронизация сотрудников, оргструктуры и остатков отпуска; документ «Отпуск» | 🧩 заглушка — контейнер `mock-zup` по нашему HTTP-контракту; боевая ЗУП подключается через `.env` (ARCHITECTURE.md §7.4) |
+| Documentolog: приказ на подпись, обратный вызов о подписании (HMAC) | 🧩 заглушка — контейнер `mock-documentolog`, подписывает через 10 с; боевой API — через `.env` |
 | Рекрутинг, ЭЦП, мобильное приложение | вне рамок кейса |
 
 ## Структура

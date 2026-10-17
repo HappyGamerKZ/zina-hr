@@ -46,6 +46,9 @@ class HrRequest(models.Model):
     external_doc_id = models.CharField("id документа в Documentolog", max_length=64, blank=True)
     external_zup_id = models.CharField("id документа в 1С:ЗУП", max_length=64, blank=True)
     external_accounting_id = models.CharField("№ в бухгалтерии", max_length=64, blank=True)
+    # Приказ в Documentolog: on_signing → signed / rejected (приходит обратным вызовом). Статус заявки не меняется.
+    doc_status = models.CharField("статус приказа в Documentolog", max_length=16, blank=True)
+    doc_registration_number = models.CharField("рег. № приказа", max_length=64, blank=True)
 
     class Meta:
         verbose_name = "заявка"

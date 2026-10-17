@@ -2,7 +2,7 @@ import logging
 
 from django.conf import settings
 
-from integrations.adapters import PROVIDERS
+from integrations.adapters import ACCOUNTING_PROVIDERS
 from integrations.models import AccountingExport
 from integrations.ports import AccountingProvider
 
@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_accounting_provider() -> AccountingProvider:
-    return PROVIDERS[settings.ACCOUNTING_PROVIDER]()
+    return ACCOUNTING_PROVIDERS[settings.ACCOUNTING_PROVIDER]()
 
 
 def build_accounting_payload(req) -> dict:

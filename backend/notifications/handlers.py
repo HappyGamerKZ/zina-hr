@@ -15,6 +15,11 @@ def _user_of(employee):
     return getattr(employee, "user", None) if employee else None
 
 
+def _lower_first(text: str) -> str:
+    """«Утверждено / Передано в 1С» → «утверждено / Передано в 1С»: аббревиатуры не портятся."""
+    return text[:1].lower() + text[1:]
+
+
 def _hr_users():
     return User.objects.filter(role=Role.HR_ADMIN, is_active=True)
 
@@ -43,7 +48,7 @@ def on_request_status_changed(request, old_status, actor, **_):
         notify(
             author_user,
             NotificationType.REQUEST_STATUS_CHANGED,
-            f"Заявка {request.number}: {request.get_status_display().lower()}",
+            f"Заявка {request.number}: {_lower_first(request.get_status_display())}",
             body,
             link,
         )
@@ -103,7 +108,26 @@ def on_course_failed(assignment, **_):
         notify(user, NotificationType.COURSE_FAILED, title, body, link)
 
 
+def on_document_status_changed(request, **_):
+    """Documentolog: приказ подписан → автору; отклонён → автору и HR."""
+    link = f"/requests/{request.pk}"
+    if request.doc_status == "signed":
+        notify(
+            _user_of(request.employee),
+            NotificationType.REQUEST_STATUS_CHANGED,
+            f"Заявка {request.number}: приказ подписан",
+            f"Приказ зарегистрирован в Documentolog, № {request.doc_registration_number}",
+            link,
+        )
+    elif request.doc_status == "rejected":
+        title = f"Заявка {request.number}: приказ отклонён в Documentolog"
+        notify(_user_of(request.employee), NotificationType.REQUEST_STATUS_CHANGED, title, "HR свяжется с вами", link)
+        for hr in _hr_users().exclude(employee=request.employee):
+            notify(hr, NotificationType.REQUEST_STATUS_CHANGED, title, "Проверьте приказ в Documentolog", link)
+
+
 def register():
+    events.subscribe(events.DOCUMENT_STATUS_CHANGED, on_document_status_changed)
     events.subscribe(events.REQUEST_SUBMITTED, on_request_submitted)
     events.subscribe(events.REQUEST_STATUS_CHANGED, on_request_status_changed)
     events.subscribe(events.COURSE_ASSIGNED, on_course_assigned)

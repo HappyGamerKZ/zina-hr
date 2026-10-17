@@ -1,0 +1,191 @@
+{
+  "company": {
+    "code": "ZUP-ORG-001",
+    "name_ru": "ТОО «Jana Post» (демо)",
+    "name_kk": "«Jana Post» ЖШС (демо)"
+  },
+  "departments": [
+    {
+      "code": "ZUP-DEP-001",
+      "name_ru": "Дирекция",
+      "name_kk": "Дирекция",
+      "parent_code": null
+    },
+    {
+      "code": "ZUP-DEP-010",
+      "name_ru": "Логистика",
+      "name_kk": "Логистика",
+      "parent_code": null
+    },
+    {
+      "code": "ZUP-DEP-030",
+      "name_ru": "HR",
+      "name_kk": "HR",
+      "parent_code": null
+    }
+  ],
+  "positions": [
+    {
+      "code": "ZUP-POS-01",
+      "title_ru": "Генеральный директор",
+      "title_kk": "Бас директор"
+    },
+    {
+      "code": "ZUP-POS-02",
+      "title_ru": "Руководитель отдела логистики",
+      "title_kk": "Логистика бөлімінің басшысы"
+    },
+    {
+      "code": "ZUP-POS-03",
+      "title_ru": "Руководитель отдела кадров",
+      "title_kk": "Кадр бөлімінің басшысы"
+    },
+    {
+      "code": "ZUP-POS-04",
+      "title_ru": "Логист",
+      "title_kk": "Логист"
+    },
+    {
+      "code": "ZUP-POS-05",
+      "title_ru": "HR-специалист",
+      "title_kk": "HR-маман"
+    },
+    {
+      "code": "ZUP-POS-06",
+      "title_ru": "Координатор складских операций",
+      "title_kk": "Қойма операцияларының үйлестірушісі"
+    }
+  ],
+  "employees": [
+    {
+      "tab_number": "T-0001",
+      "full_name": "Абенов Нурлан Касымович",
+      "department_code": "ZUP-DEP-001",
+      "position_code": "ZUP-POS-01",
+      "hire_date": "2015-01-12",
+      "manager_tab_number": null,
+      "email": "t-0001@demo.janapost.test"
+    },
+    {
+      "tab_number": "T-0002",
+      "full_name": "Бекенов Ерлан Серикович",
+      "department_code": "ZUP-DEP-010",
+      "position_code": "ZUP-POS-02",
+      "hire_date": "2018-09-03",
+      "manager_tab_number": "T-0001",
+      "email": "t-0002@demo.janapost.test"
+    },
+    {
+      "tab_number": "T-0003",
+      "full_name": "Касымова Динара Маратовна",
+      "department_code": "ZUP-DEP-030",
+      "position_code": "ZUP-POS-03",
+      "hire_date": "2016-03-11",
+      "manager_tab_number": "T-0001",
+      "email": "t-0003@demo.janapost.test"
+    },
+    {
+      "tab_number": "T-0004",
+      "full_name": "Сапарова Айгерим Нурлановна",
+      "department_code": "ZUP-DEP-010",
+      "position_code": "ZUP-POS-04",
+      "hire_date": "2022-02-14",
+      "manager_tab_number": "T-0002",
+      "email": "t-0004@demo.janapost.test"
+    },
+    {
+      "tab_number": "T-0005",
+      "full_name": "Нурланова Асель Ериковна",
+      "department_code": "ZUP-DEP-030",
+      "position_code": "ZUP-POS-05",
+      "hire_date": "2021-08-02",
+      "manager_tab_number": "T-0003",
+      "email": "t-0005@demo.janapost.test"
+    },
+    {
+      "tab_number": "T-0006",
+      "full_name": "Серикбаева Мадина Болатовна",
+      "department_code": "ZUP-DEP-030",
+      "position_code": "ZUP-POS-05",
+      "hire_date": "2023-04-17",
+      "manager_tab_number": "T-0003",
+      "email": "t-0006@demo.janapost.test"
+    },
+    {
+      "tab_number": "T-0007",
+      "full_name": "Омаров Тимур Асланович",
+      "department_code": "ZUP-DEP-010",
+      "position_code": "ZUP-POS-04",
+      "hire_date": "2023-06-01",
+      "manager_tab_number": "T-0002",
+      "email": "t-0007@demo.janapost.test"
+    },
+    {
+      "tab_number": "T-0008",
+      "full_name": "Ким Алина Викторовна",
+      "department_code": "ZUP-DEP-010",
+      "position_code": "ZUP-POS-06",
+      "hire_date": "2021-11-22",
+      "manager_tab_number": "T-0002",
+      "email": "t-0008@demo.janapost.test"
+    }
+  ],
+  "leave_balances": [
+    {
+      "tab_number": "T-0001",
+      "leave_type": "annual",
+      "days_total": 24,
+      "days_used": 7,
+      "as_of": "2026-10-17"
+    },
+    {
+      "tab_number": "T-0002",
+      "leave_type": "annual",
+      "days_total": 24,
+      "days_used": 14,
+      "as_of": "2026-10-17"
+    },
+    {
+      "tab_number": "T-0003",
+      "leave_type": "annual",
+      "days_total": 24,
+      "days_used": 10,
+      "as_of": "2026-10-17"
+    },
+    {
+      "tab_number": "T-0004",
+      "leave_type": "annual",
+      "days_total": 24,
+      "days_used": 7,
+      "as_of": "2026-10-17"
+    },
+    {
+      "tab_number": "T-0005",
+      "leave_type": "annual",
+      "days_total": 24,
+      "days_used": 6,
+      "as_of": "2026-10-17"
+    },
+    {
+      "tab_number": "T-0006",
+      "leave_type": "annual",
+      "days_total": 24,
+      "days_used": 2,
+      "as_of": "2026-10-17"
+    },
+    {
+      "tab_number": "T-0007",
+      "leave_type": "annual",
+      "days_total": 24,
+      "days_used": 0,
+      "as_of": "2026-10-17"
+    },
+    {
+      "tab_number": "T-0008",
+      "leave_type": "annual",
+      "days_total": 24,
+      "days_used": 12,
+      "as_of": "2026-10-17"
+    }
+  ]
+}

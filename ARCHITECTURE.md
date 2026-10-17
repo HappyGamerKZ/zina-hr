@@ -314,52 +314,63 @@ flowchart LR
 
 ---
 
-## 7. Интеграции: 1С:ЗУП и Documentolog
+## 7. Интеграции: 1С:ЗУП, Documentolog, бухгалтерия
 
-### 7.1 Порты и адаптеры
+Код — в `backend/integrations/`, заглушки внешних систем — в `mocks/`. Остальной код знает только интерфейсы (порты), поэтому замена заглушки на боевую систему — это смена URL и ключей в `.env`.
 
-```python
-class HRISProvider(Protocol):            # 1С:ЗУП
-    def list_employees(self, since: datetime | None) -> list[EmployeeDTO]: ...
-    def get_leave_balance(self, external_id: str) -> LeaveBalanceDTO: ...
-    def push_approved_vacation(self, req: VacationDTO) -> str: ...   # → id документа в ЗУП
-    def push_approved_advance(self, req: AdvanceDTO) -> str: ...
+### 7.1 Порты и адаптеры (`integrations/ports.py`, `adapters.py`)
 
-class DocFlowProvider(Protocol):         # Documentolog
-    def create_document(self, req: HrRequestDTO, template: str) -> str: ...  # → external_doc_id
-    def get_status(self, external_doc_id: str) -> DocStatus: ...
-```
+| Порт | Методы | Адаптеры | Настройка |
+|---|---|---|---|
+| `HRISProvider` (1С:ЗУП) | `fetch_snapshot()` → компания, подразделения, должности, сотрудники, остатки отпуска; `push_vacation(payload)` → № документа «Отпуск» | `ZupHttpAdapter` (заглушка `mocks/zup` или HTTP-сервис ЗУП `/hs/janamen/v1`), `InMemoryZupAdapter` (тесты) | `HRIS_PROVIDER`, `ZUP_BASE_URL`, `ZUP_USER`, `ZUP_PASSWORD` |
+| `DocFlowProvider` (Documentolog) | `create_document(payload, callback_url)` → id документа; результат приходит обратным вызовом | `DocumentologHttpAdapter` (заглушка `mocks/documentolog` или API Documentolog), `InMemoryDocflowAdapter` | `DOCFLOW_PROVIDER`, `DOCUMENTOLOG_BASE_URL`, `DOCUMENTOLOG_TOKEN`, `DOCUMENTOLOG_WEBHOOK_SECRET` |
+| `AccountingProvider` (бухгалтерия) | `send_request(payload)` → № документа | `MockAccountingAdapter` (в процессе) | `ACCOUNTING_PROVIDER` |
 
-Сейчас: `MockZupAdapter`, `MockDocumentologAdapter` ходят по HTTP в контейнеры-заглушки с тестовыми данными. Позже: `ZupODataAdapter` (1С OData / HTTP-сервис ЗУП) и `DocumentologApiAdapter` — включаются через `.env`, остальной код не меняется.
+**Контракт HTTP-сервиса 1С:ЗУП** задаём мы (описан в `mocks/zup/server.py`): 1С-разработчик публикует в ЗУП HTTP-сервис с теми же адресами — и backend работает с ним без изменений кода.
 
-### 7.2 Потоки данных
+### 7.2 Кадровые данные из 1С:ЗУП (`integrations/zup_sync.py`)
+
+- Запуск: при старте backend (`sync_zup --trigger startup`, сбой не останавливает запуск), командой `manage.py sync_zup` и кнопкой «Синхронизировать с 1С:ЗУП сейчас» в Django Admin.
+- Сопоставление по кодам 1С: табельный номер, коды подразделений и должностей. Обновляются ФИО, подразделение, должность, руководитель, дата приёма, остатки отпуска. Учётные записи не создаются, сотрудники, которых нет в ЗУП, не удаляются.
+- Каждый запуск — запись `SyncRun` (что создано / обновлено / без изменений, ошибка).
+
+### 7.3 Утверждённые заявки → внешние системы (outbox, `integrations/outbox.py`)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant ZUP as 1С:ЗУП (mock)
+    participant HR as HR
     participant BE as Backend
     participant DB as PostgreSQL
-    participant DOC as Documentolog (mock)
+    participant W as worker
+    participant BUH as Бухгалтерия (mock)
+    participant ZUP as 1С:ЗУП (mock-zup)
+    participant DOC as Documentolog (mock-documentolog)
     participant E as Сотрудник
 
-    Note over ZUP,BE: Кадровые данные (read-only, раз в N минут + кнопка HR)
-    BE->>ZUP: GET /employees?since=..., GET /leave-balance
-    ZUP-->>BE: сотрудники, оргструктура, остатки отпуска
-    BE->>DB: upsert employees, leave_balances (source=zup)
-
-    Note over E,DOC: Заявка на отпуск
-    E->>BE: POST /requests (vacation)
-    BE->>DB: hr_requests + request_events
-    Note over BE: руководитель → HR утвердили
-    BE->>DB: status=approved + integration_outbox (2 записи)
-    BE->>DOC: outbox worker: POST /documents (приказ об отпуске)
-    BE->>ZUP: outbox worker: POST /vacations
-    DOC-->>BE: webhook: document signed
-    BE->>DB: status=registered, событие → уведомление
+    HR->>BE: PATCH /requests/{id}/approve-hr
+    BE->>DB: статус APPROVED_SENT_TO_1C + задачи OutboxTask (одна транзакция)
+    BE->>BUH: сразу после коммита: документ (выплата / отпускные)
+    BE->>ZUP: POST /hs/janamen/v1/vacations (только отпуск)
+    BE->>DOC: POST /api/v1/documents (приказ на подпись)
+    Note over BE,DOC: система недоступна → задача ждёт, worker повторяет: 30 с, 1, 2, 4… мин (до 8 попыток)
+    W->>DOC: повтор отправки
+    DOC-->>BE: через ~10 с: POST /api/v1/integrations/documentolog/webhook (HMAC-подпись)
+    BE->>DB: doc_status=signed, рег. №, событие в истории
+    BE->>E: уведомление «приказ подписан»
 ```
 
-Почему **outbox**: утверждение заявки не должно падать, если внешняя система недоступна. Запись в outbox делается в той же транзакции, воркер отправляет с повторами, ошибки видны HR в админке.
+- **Почему outbox:** утверждение заявки не падает, если внешняя система недоступна. Задачи создаются в той же транзакции, что и утверждение, поэтому не теряются; worker (`manage.py run_worker`, отдельный контейнер) отправляет их с повторами. Двойная отправка исключена: строка задачи блокируется (`select_for_update(skip_locked)`), заглушки идемпотентны по номеру заявки.
+- **Маршрут:** отпуск → бухгалтерия, 1С:ЗУП (документ «Отпуск»), Documentolog (приказ); аванс → бухгалтерия, Documentolog.
+- **Статус заявки не меняется** (остаётся «Утверждено / Передано в 1С»): результаты пишутся в поля `external_accounting_id`, `external_zup_id`, `external_doc_id`, `doc_status`, `doc_registration_number`, событиями в истории и уведомлениями. Так фронтенд не нужно менять при подключении новых систем.
+- **Обратный вызов Documentolog** проверяется HMAC-SHA256 подписью тела (`X-Documentolog-Signature`), повторный вызов с тем же статусом игнорируется. Приказ отклонён → уведомление сотруднику и HR.
+- **Админка:** «Очередь отправок» (статус, попытки, ошибка, кнопка «Отправить повторно») и «Синхронизации с 1С:ЗУП».
+
+### 7.4 Подключение боевых систем
+
+1. 1С:ЗУП: опубликовать HTTP-сервис по контракту `mocks/zup/server.py`, в `.env` указать `ZUP_BASE_URL`, `ZUP_USER`, `ZUP_PASSWORD`.
+2. Documentolog: шаблоны приказов `vacation_order`, `advance_order`; в `.env` — `DOCUMENTOLOG_BASE_URL`, `DOCUMENTOLOG_TOKEN`, `DOCUMENTOLOG_WEBHOOK_SECRET`; в Documentolog — адрес обратного вызова `https://<домен>/api/v1/integrations/documentolog/webhook`. Если формат API Documentolog отличается от заглушки — меняется только `DocumentologHttpAdapter`.
+3. Убрать сервисы `mock-zup` и `mock-documentolog` из compose.
 
 ---
 
