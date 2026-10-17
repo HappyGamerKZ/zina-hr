@@ -22,7 +22,7 @@ const kk: Dict = {
     username: "Логин",
     password: "Құпиясөз",
     submit: "Кіру",
-    demo: "Демо-логиндер: employee, manager, hr, hr_head, employee2 — құпиясөз demo1234",
+    demo: "Демо-логиндер: employee, manager_logistics, hr_spec_1, hr_spec_2, head_hr, ceo — құпиясөз demo1234",
   },
   common: {
     loading: "Жүктелуде…",

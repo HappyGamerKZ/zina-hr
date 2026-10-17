@@ -21,6 +21,8 @@ def approvals_queryset(user, qs):
     """Заявки, которые ждут действия именно этого пользователя (зеркало state_machine)."""
     as_manager = Q(status=Status.WAITING_MANAGER_APPROVAL, employee__manager_id=user.employee_id)
     if user.role == Role.HR_ADMIN:
+        # «Единое окно»: все WAITING_HR_APPROVAL — общий пул, одинаково видимый любому HR
+        # (hr_spec_1, hr_spec_2, head_hr). Свои заявки HR в пуле не видит.
         return qs.filter(as_manager | Q(status=Status.WAITING_HR_APPROVAL)).exclude(
             employee_id=user.employee_id
         )

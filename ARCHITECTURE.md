@@ -466,12 +466,19 @@ zina-hr/
 
 ## 11. Тестовые данные (seed)
 
-| Логин | Роль | Кто это |
-|---|---|---|
-| `employee` | employee | Айгерим С., специалист по логистике, руководитель — `manager` |
-| `manager` | manager | Ерлан Б., руководитель отдела логистики, 3 подчинённых |
-| `hr` | hr_admin | Динара К., HR-менеджер |
-| `employee2` | employee | сотрудник **другого** отдела — для проверки, что `manager` его не видит |
+Оргструктура (`core/demo_users.py`, команды `seed_users` и `seed`):
+
+```
+ceo (Дирекция, manager = null; manager + Django Admin)
+├── manager_logistics (Логистика)
+│   ├── employee
+│   └── 2 сотрудника без учётных записей
+└── head_hr (HR, полный доступ)
+    ├── hr_spec_1 ┐ равный доступ к общему пулу
+    └── hr_spec_2 ┘ WAITING_HR_APPROVAL («единое окно»)
+```
+
+Иерархия хранится в `Employee.manager` (кадровые данные из 1С:ЗУП), `User` ссылается на `Employee`. Общий пул HR защищён от двойной обработки: переход блокирует строку (`select_for_update`) и проверяет статус.
 
 Пароли — только в README и `seed`, тестовые. Заявки во всех статусах маршрута: `WAITING_MANAGER_APPROVAL`, `WAITING_HR_APPROVAL`, `APPROVED_SENT_TO_1C`, `REJECTED`, `CANCELLED`. Курсы: 2 (одно назначение `in_progress`, одно `assigned`). БЗ: 15–20 статей. Все ФИО вымышленные.
 

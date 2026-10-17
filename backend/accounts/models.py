@@ -14,7 +14,7 @@ ROLE_PERMISSIONS = {
     Role.MANAGER: ["requests.create", "academy.learn", "ai.ask", "team.view", "requests.approve"],
     Role.HR_ADMIN: [
         "requests.create", "academy.learn", "ai.ask", "team.view", "requests.approve",
-        "hr.all_requests", "hr.admin",
+        "hr.all_requests",
     ],
 }
 
@@ -32,4 +32,7 @@ class User(AbstractUser):
 
     @property
     def permissions_list(self):
-        return ROLE_PERMISSIONS.get(self.role, [])
+        perms = list(ROLE_PERMISSIONS.get(self.role, []))
+        if self.is_staff:  # ссылка на Django Admin — только тем, у кого есть туда доступ (ceo, head_hr)
+            perms.append("hr.admin")
+        return perms

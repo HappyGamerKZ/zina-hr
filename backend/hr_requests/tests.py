@@ -35,6 +35,7 @@ class ApprovalFlowTests(APITestCase):
         cls.hr_head_emp, cls.hr_head = person("hr_head", Role.HR_ADMIN, department=dep_hr)
         # 2. HR-специалист — руководитель Head of HR
         cls.hr_emp, cls.hr = person("hr", Role.HR_ADMIN, manager=cls.hr_head_emp, department=dep_hr)
+        cls.hr2_emp, cls.hr2 = person("hr2", Role.HR_ADMIN, manager=cls.hr_head_emp, department=dep_hr)
         # руководитель отдела и 1. обычный сотрудник
         cls.mgr_emp, cls.mgr = person("manager", Role.MANAGER)
         cls.emp_emp, cls.emp = person("employee", Role.EMPLOYEE, manager=cls.mgr_emp)
@@ -104,6 +105,22 @@ class ApprovalFlowTests(APITestCase):
         req = self.create_advance(self.hr_head)
         self.assertEqual(req["status"], Status.APPROVED_SENT_TO_1C)
         self.assertTrue(req["external_accounting_id"].startswith("BUH-"))
+
+    def test_shared_hr_queue(self):
+        """«Единое окно»: заявку видят все HR, оформляет один, второй получает отказ."""
+        req = self.create_advance(self.emp)
+        self.act(self.mgr, req["id"], "approve-manager")
+
+        for hr in (self.hr, self.hr2, self.hr_head):
+            self.client.force_authenticate(hr)
+            ids = [r["id"] for r in self.client.get("/api/v1/requests?scope=approvals").data]
+            self.assertIn(req["id"], ids, hr.username)
+
+        self.assertEqual(self.act(self.hr2, req["id"], "approve-hr").status_code, 200)
+        self.assertEqual(self.act(self.hr, req["id"], "approve-hr").status_code, 400)
+        self.client.force_authenticate(self.hr)
+        ids = [r["id"] for r in self.client.get("/api/v1/requests?scope=approvals").data]
+        self.assertNotIn(req["id"], ids)
 
     # --- права и конфликт интересов ---
 

@@ -20,7 +20,7 @@ const ru = {
     username: "Логин",
     password: "Пароль",
     submit: "Войти",
-    demo: "Демо-логины: employee, manager, hr, hr_head, employee2 — пароль demo1234",
+    demo: "Демо-логины: employee, manager_logistics, hr_spec_1, hr_spec_2, head_hr, ceo — пароль demo1234",
   },
   common: {
     loading: "Загрузка…",
