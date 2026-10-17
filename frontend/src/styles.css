@@ -1,23 +1,25 @@
 :root {
-  --bg: #f4f6fa;
+  --bg: #f1f1f1;
   --surface: #ffffff;
-  --surface-2: #eef1f7;
-  --text: #172033;
-  --muted: #667085;
-  --border: #dde2ec;
-  --primary: #1f4fd8;
+  --surface-2: #e8ebe4;
+  --text: #0a3500;
+  --muted: #6b6b6b;          
+  --subtle: #939393;         
+  --border: #d9dcd5;
+  --primary: #4d7e29;
   --primary-ink: #ffffff;
-  --primary-soft: #e6edff;
-  --ok: #157f3d;
-  --ok-soft: #e3f6ea;
+  --primary-soft: #edf4e6;
+  --accent: #8dba69;
+  --ok: #2e7d32;
+  --ok-soft: #e3f4e4;
   --warn: #9a6200;
   --warn-soft: #fff3d6;
-  --info: #1f4fd8;
-  --info-soft: #e6edff;
+  --info: #0a3500;
+  --info-soft: #e1ecd4;
   --bad: #b42318;
   --bad-soft: #fde8e7;
   --radius: 14px;
-  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
+  --shadow: 0 1px 2px rgba(10, 53, 0, 0.06), 0 1px 3px rgba(10, 53, 0, 0.08);
   font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
   color: var(--text);
   background: var(--bg);
@@ -25,27 +27,28 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f1420;
-    --surface: #171e2e;
-    --surface-2: #1f2840;
-    --text: #e7eaf2;
-    --muted: #98a2b8;
-    --border: #2a3450;
-    --primary: #5b84ff;
-    --primary-ink: #0b1020;
-    --primary-soft: #1d2a52;
-    --ok: #5cd38b;
-    --ok-soft: #133024;
+    --bg: #081a03;
+    --surface: #0f2a07;
+    --surface-2: #163a0b;
+    --text: #f1f1f1;
+    --muted: #a8b0a2;
+    --subtle: #939393;
+    --border: #234f14;
+    --primary: #8dba69;
+    --primary-ink: #0a3500;
+    --primary-soft: #1a4210;
+    --accent: #4d7e29;
+    --ok: #7fd38f;
+    --ok-soft: #133a1c;
     --warn: #f0b640;
     --warn-soft: #3a2c0c;
-    --info: #8aa8ff;
-    --info-soft: #1d2a52;
+    --info: #8dba69;
+    --info-soft: #1a4210;
     --bad: #ff7a70;
     --bad-soft: #3b1715;
     --shadow: none;
   }
 }
-
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); }
 a { color: var(--primary); text-decoration: none; }
@@ -71,7 +74,7 @@ h2 { font-size: 1.1rem; margin: 0 0 12px; }
   box-shadow: var(--shadow);
 }
 
-/* --- buttons & inputs --- */
+
 button, .btn-primary, .btn-secondary, .btn-ghost, .btn-danger {
   font: inherit;
   cursor: pointer;
@@ -302,3 +305,11 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--primary); o
 .block-media figcaption { color: var(--muted); font-size: 0.85rem; }
 .block-file { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; color: var(--text); }
 .block-file-icon { font-size: 1.4rem; }
+.icon-mask {
+  display: inline-block;
+  flex-shrink: 0;
+  background-color: currentColor;
+  -webkit-mask: var(--icon) center / 200% 200% no-repeat;
+  mask: var(--icon) center / 200% 200% no-repeat;
+}
+.nav-icon { display: grid; place-items: center; }

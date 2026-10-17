@@ -2,27 +2,28 @@ import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-
+import Icon from "./Icon";
+import { icons } from "./icons";
 import { api } from "../api/client";
 import { useLiveNotifications } from "../api/live";
 import type { Lang } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { setLang } from "../i18n";
 import { getTheme, setTheme, type Theme } from "../theme";
-
+ 
 interface NavItem {
   to: string;
   label: string;
-  icon: string;
+  icon: string; // путь к svg-файлу (см. icons.ts)
   permission?: string;
   mobile?: boolean;
 }
-
+ 
 export default function Layout() {
   const { me, logout, can } = useAuth();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-
+ 
   // Уведомления: live-поток (SSE) присылает событие сразу → перечитываем счётчик.
   // Пришло новое уведомление (изменился latest_id) — обновляем заявки, главную и список
   // уведомлений без перезагрузки страницы. Пока поток не подключён — опрос раз в 10 с.
@@ -46,37 +47,37 @@ export default function Layout() {
     }
     seenId.current = latestId;
   }, [latestId, qc]);
-
+ 
   const items: NavItem[] = [
-    { to: "/", label: t("nav.home"), icon: "⌂", mobile: true },
-    { to: "/requests", label: t("nav.requests"), icon: "✎", mobile: true },
-    { to: "/academy", label: t("nav.academy"), icon: "▶", mobile: true },
-    { to: "/ai", label: t("nav.ai"), icon: "✦", mobile: true },
-    { to: "/profile", label: t("nav.profile"), icon: "☺", mobile: true },
-    { to: "/team", label: t("nav.team"), icon: "☷", permission: "team.view" },
-    { to: "/team/approvals", label: t("nav.approvals"), icon: "✓", permission: "requests.approve" },
+    { to: "/", label: t("nav.home"), icon: icons.home, mobile: true },
+    { to: "/requests", label: t("nav.requests"), icon: icons.requests, mobile: true },
+    { to: "/academy", label: t("nav.academy"), icon: icons.academy, mobile: true },
+    { to: "/ai", label: t("nav.ai"), icon: icons.ai, mobile: true },
+    { to: "/profile", label: t("nav.profile"), icon: icons.profile, mobile: true },
+    { to: "/team", label: t("nav.team"), icon: icons.team, permission: "team.view" },
+    { to: "/team/approvals", label: t("nav.approvals"), icon: icons.approvals, permission: "requests.approve" },
   ];
   const visible = items.filter((i) => !i.permission || can(i.permission));
-
+ 
   const [theme, setThemeState] = useState<Theme>(getTheme);
   const toggleTheme = () => {
     const next: Theme = theme === "dark" ? "light" : "dark";
     setTheme(next);
     setThemeState(next);
   };
-
+ 
   const switchLang = (lang: Lang) => {
     setLang(lang);
     api("/me", { method: "PATCH", body: { locale: lang } }).catch(() => undefined);
   };
-
+ 
   const onLogout = async () => {
     await logout();
     navigate("/login");
   };
-
+ 
   const count = unread.data?.count ?? 0;
-
+ 
   return (
     <div className="shell">
       <aside className="sidebar">
@@ -91,7 +92,7 @@ export default function Layout() {
           {visible.map((i) => (
             <NavLink key={i.to} to={i.to} end={i.to === "/" || i.to === "/team"} className="nav-link">
               <span className="nav-icon" aria-hidden>
-                {i.icon}
+                <Icon src={i.icon} />
               </span>
               {i.label}
             </NavLink>
@@ -99,14 +100,14 @@ export default function Layout() {
           {can("hr.admin") && (
             <a className="nav-link" href="/admin/" target="_blank" rel="noreferrer">
               <span className="nav-icon" aria-hidden>
-                ⚙
+                <Icon src={icons.admin} />
               </span>
               {t("nav.admin")}
             </a>
           )}
         </nav>
       </aside>
-
+ 
       <div className="main">
         <header className="topbar">
           <div className="topbar-user">
@@ -134,9 +135,11 @@ export default function Layout() {
               {theme === "dark" ? "☀️" : "🌙"}
             </button>
             <NavLink to="/notifications" className="bell" aria-label={t("nav.notifications")}>
-              🔔{count > 0 && <span className="badge-count">{count}</span>}
+              <Icon src={icons.bell} size={22} />
+              {count > 0 && <span className="badge-count">{count}</span>}
             </NavLink>
             <button className="btn-ghost" onClick={onLogout}>
+              <Icon src={icons.logout} size={18} />
               {t("nav.logout")}
             </button>
           </div>
@@ -145,13 +148,13 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
-
+ 
       <nav className="bottom-nav">
         {visible
           .filter((i) => i.mobile)
           .map((i) => (
             <NavLink key={i.to} to={i.to} end={i.to === "/"} className="bottom-link">
-              <span aria-hidden>{i.icon}</span>
+              <Icon src={i.icon} size={22} />
               <small>{i.label}</small>
             </NavLink>
           ))}
