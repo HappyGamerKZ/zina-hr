@@ -5,8 +5,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import "./i18n";
 import "./styles.css";
+import { initTheme } from "./theme";
 import App from "./App";
 import { AuthProvider } from "./auth/AuthContext";
+
+initTheme();
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: true } },

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -7,6 +7,7 @@ import { api } from "../api/client";
 import type { Lang } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { setLang } from "../i18n";
+import { getTheme, setTheme, type Theme } from "../theme";
 
 interface NavItem {
   to: string;
@@ -54,6 +55,13 @@ export default function Layout() {
     { to: "/team/approvals", label: t("nav.approvals"), icon: "✓", permission: "requests.approve" },
   ];
   const visible = items.filter((i) => !i.permission || can(i.permission));
+
+  const [theme, setThemeState] = useState<Theme>(getTheme);
+  const toggleTheme = () => {
+    const next: Theme = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    setThemeState(next);
+  };
 
   const switchLang = (lang: Lang) => {
     setLang(lang);
@@ -115,6 +123,14 @@ export default function Layout() {
                 </button>
               ))}
             </div>
+            <button
+              className="btn-ghost"
+              onClick={toggleTheme}
+              title={theme === "dark" ? t("theme.to_light") : t("theme.to_dark")}
+              aria-label={theme === "dark" ? t("theme.to_light") : t("theme.to_dark")}
+            >
+              {theme === "dark" ? "☀️" : "🌙"}
+            </button>
             <NavLink to="/notifications" className="bell" aria-label={t("nav.notifications")}>
               🔔{count > 0 && <span className="badge-count">{count}</span>}
             </NavLink>

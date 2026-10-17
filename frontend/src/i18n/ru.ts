@@ -1,6 +1,7 @@
 const ru = {
   app: { name: "JanaМен", tagline: "HR-платформа Jana Post" },
   role: { employee: "Сотрудник", manager: "Руководитель", hr_admin: "HR" },
+  theme: { to_dark: "Тёмная тема", to_light: "Светлая тема" },
   nav: {
     home: "Главная",
     profile: "Профиль",
