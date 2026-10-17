@@ -1,5 +1,21 @@
 // Тест Jana Academy: 4 типа вопросов. Временный UI для тестирования backend — дизайн сделает фронтенд.
-import { useState, type DragEvent } from "react";
+import { useState, type ReactNode } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  closestCenter,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
@@ -57,99 +73,139 @@ function ChoiceQuestion({ q, value, onChange }: { q: QuizQuestion; value?: Answe
   );
 }
 
+// --- перетаскивание: мышь, палец на телефоне и клавиатура ---
+
+function useDndSensors() {
+  return useSensors(
+    // Мышь: перетаскивание начинается после сдвига на 6 px, поэтому клики по кнопкам работают
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    // Палец: короткое удержание, чтобы обычная прокрутка страницы не превращалась в перетаскивание
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+}
+
 // --- правильный порядок ---
+
+function SortableRow(props: { id: number; index: number; total: number; text: string; move: (from: number, to: number) => void }) {
+  const { id, index, total, text, move } = props;
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={isDragging ? "dragging" : ""}
+      {...attributes}
+      {...listeners}
+    >
+      <span className="drag-handle" aria-hidden>
+        ⠿
+      </span>
+      <span className="ordering-text">{text}</span>
+      <span className="ordering-buttons">
+        <button type="button" className="btn-ghost" onClick={() => move(index, index - 1)} disabled={index === 0} aria-label="up">
+          ↑
+        </button>
+        <button
+          type="button"
+          className="btn-ghost"
+          onClick={() => move(index, index + 1)}
+          disabled={index === total - 1}
+          aria-label="down"
+        >
+          ↓
+        </button>
+      </span>
+    </li>
+  );
+}
 
 function OrderingQuestion({ q, value, onChange }: { q: QuizQuestion; value?: Answer; onChange: (a: Answer) => void }) {
   const order = (value as number[]) ?? q.options.map((o) => o.id);
   const text = (id: number) => q.options.find((o) => o.id === id)?.text ?? "";
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const sensors = useDndSensors();
 
   const move = (from: number, to: number) => {
     if (to < 0 || to >= order.length || from === to) return;
-    const next = [...order];
-    const [item] = next.splice(from, 1);
-    next.splice(to, 0, item);
-    onChange(next);
+    onChange(arrayMove(order, from, to));
+  };
+
+  const onDragEnd = ({ active, over }: DragEndEvent) => {
+    if (over && active.id !== over.id) move(order.indexOf(Number(active.id)), order.indexOf(Number(over.id)));
   };
 
   return (
-    <ol className="ordering">
-      {order.map((id, i) => (
-        <li
-          key={id}
-          draggable
-          className={dragIndex === i ? "dragging" : ""}
-          onDragStart={() => setDragIndex(i)}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={() => {
-            if (dragIndex !== null) move(dragIndex, i);
-            setDragIndex(null);
-          }}
-          onDragEnd={() => setDragIndex(null)}
-        >
-          <span className="drag-handle" aria-hidden>
-            ⠿
-          </span>
-          <span className="ordering-text">{text(id)}</span>
-          <span className="ordering-buttons">
-            <button type="button" className="btn-ghost" onClick={() => move(i, i - 1)} disabled={i === 0} aria-label="up">
-              ↑
-            </button>
-            <button
-              type="button"
-              className="btn-ghost"
-              onClick={() => move(i, i + 1)}
-              disabled={i === order.length - 1}
-              aria-label="down"
-            >
-              ↓
-            </button>
-          </span>
-        </li>
-      ))}
-    </ol>
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      <SortableContext items={order} strategy={verticalListSortingStrategy}>
+        <ol className="ordering">
+          {order.map((id, i) => (
+            <SortableRow key={id} id={id} index={i} total={order.length} text={text(id)} move={move} />
+          ))}
+        </ol>
+      </SortableContext>
+    </DndContext>
   );
 }
 
 // --- перетаскивание слов в пропуски ---
 
+type ChipData = { optionId: number; fromBlank?: string };
+
+function DraggableChip({ optionId, fromBlank, label, onClick }: ChipData & { label: string; onClick: () => void }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: fromBlank ? `blank-chip-${fromBlank}` : `chip-${optionId}`,
+    data: { optionId, fromBlank } satisfies ChipData,
+  });
+  return (
+    <span
+      ref={setNodeRef}
+      className={`chip ${isDragging ? "chip-ghost" : ""}`}
+      onClick={onClick}
+      {...attributes}
+      {...listeners}
+    >
+      {label}
+    </span>
+  );
+}
+
+function BlankSlot({ blank, children }: { blank: string; children: ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `blank-${blank}`, data: { blank } });
+  return (
+    <span ref={setNodeRef} className={`blank ${isOver ? "over" : ""} ${children ? "filled" : ""}`}>
+      {children ?? <span className="blank-number">{blank}</span>}
+    </span>
+  );
+}
+
+function WordBank({ children, label }: { children: ReactNode; label: string }) {
+  const { setNodeRef, isOver } = useDroppable({ id: "bank" });
+  return (
+    <div ref={setNodeRef} className={`word-bank ${isOver ? "over" : ""}`}>
+      <span className="muted small">{label}:</span>
+      {children}
+    </div>
+  );
+}
+
 function FillBlanksQuestion({ q, value, onChange }: { q: QuizQuestion; value?: Answer; onChange: (a: Answer) => void }) {
   const { t } = useTranslation();
+  const sensors = useDndSensors();
+  const [dragging, setDragging] = useState<ChipData | null>(null);
   const filled = (value as Record<string, number>) ?? {};
   const used = new Set(Object.values(filled));
   const bank = q.options.filter((o) => !used.has(o.id));
   const text = (id: number) => q.options.find((o) => o.id === id)?.text ?? "";
 
-  const startDrag = (e: DragEvent, optionId: number, fromBlank?: string) =>
-    e.dataTransfer.setData("text/plain", JSON.stringify({ optionId, fromBlank }));
-
-  const dropOnBlank = (e: DragEvent, blank: string) => {
-    e.preventDefault();
-    const { optionId, fromBlank } = JSON.parse(e.dataTransfer.getData("text/plain") || "{}");
-    if (optionId === undefined) return;
+  const place = (optionId: number, blank: string, fromBlank?: string) => {
     const next = { ...filled };
     const displaced = next[blank];
     next[blank] = optionId;
     if (fromBlank && fromBlank !== blank) {
-      if (displaced !== undefined) next[fromBlank] = displaced; // поменять местами
+      if (displaced !== undefined) next[fromBlank] = displaced; // поменять слова местами
       else delete next[fromBlank];
     }
     onChange(next);
-  };
-
-  const dropOnBank = (e: DragEvent) => {
-    e.preventDefault();
-    const { fromBlank } = JSON.parse(e.dataTransfer.getData("text/plain") || "{}");
-    if (!fromBlank) return;
-    const next = { ...filled };
-    delete next[fromBlank];
-    onChange(next);
-  };
-
-  // Клик по слову — в первый пустой пропуск (удобно на телефоне, где drag-and-drop не работает)
-  const placeByClick = (optionId: number) => {
-    const empty = (q.blanks ?? []).map(String).find((b) => filled[b] === undefined);
-    if (empty) onChange({ ...filled, [empty]: optionId });
   };
 
   const clearBlank = (blank: string) => {
@@ -158,8 +214,24 @@ function FillBlanksQuestion({ q, value, onChange }: { q: QuizQuestion; value?: A
     onChange(next);
   };
 
+  // Клик по слову — в первый пустой пропуск; клик по слову в пропуске — вернуть его в банк слов
+  const placeByClick = (optionId: number) => {
+    const empty = (q.blanks ?? []).map(String).find((b) => filled[b] === undefined);
+    if (empty) place(optionId, empty);
+  };
+
+  const onDragStart = ({ active }: DragStartEvent) => setDragging(active.data.current as ChipData);
+  const onDragEnd = ({ active, over }: DragEndEvent) => {
+    setDragging(null);
+    const data = active.data.current as ChipData;
+    if (!over || !data) return;
+    const blank = over.data.current?.blank as string | undefined;
+    if (blank) place(data.optionId, blank, data.fromBlank);
+    else if (over.id === "bank" && data.fromBlank) clearBlank(data.fromBlank);
+  };
+
   return (
-    <div className="fill">
+    <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)}>
       <p className="fill-text">
         {q.text.split(BLANK_SPLIT).map((part, i) => {
           const m = part.match(BLANK_MATCH);
@@ -167,38 +239,21 @@ function FillBlanksQuestion({ q, value, onChange }: { q: QuizQuestion; value?: A
           const blank = m[1];
           const optionId = filled[blank];
           return (
-            <span
-              key={i}
-              className={`blank ${optionId !== undefined ? "filled" : ""}`}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => dropOnBlank(e, blank)}
-            >
+            <BlankSlot key={i} blank={blank}>
               {optionId !== undefined ? (
-                <span
-                  className="chip"
-                  draggable
-                  onDragStart={(e) => startDrag(e, optionId, blank)}
-                  onClick={() => clearBlank(blank)}
-                  title="×"
-                >
-                  {text(optionId)}
-                </span>
-              ) : (
-                <span className="blank-number">{blank}</span>
-              )}
-            </span>
+                <DraggableChip optionId={optionId} fromBlank={blank} label={text(optionId)} onClick={() => clearBlank(blank)} />
+              ) : null}
+            </BlankSlot>
           );
         })}
       </p>
-      <div className="word-bank" onDragOver={(e) => e.preventDefault()} onDrop={dropOnBank}>
-        <span className="muted small">{t("academy.word_bank")}:</span>
+      <WordBank label={t("academy.word_bank")}>
         {bank.map((o) => (
-          <span key={o.id} className="chip" draggable onDragStart={(e) => startDrag(e, o.id)} onClick={() => placeByClick(o.id)}>
-            {o.text}
-          </span>
+          <DraggableChip key={o.id} optionId={o.id} label={o.text} onClick={() => placeByClick(o.id)} />
         ))}
-      </div>
-    </div>
+      </WordBank>
+      <DragOverlay>{dragging ? <span className="chip chip-overlay">{text(dragging.optionId)}</span> : null}</DragOverlay>
+    </DndContext>
   );
 }
 

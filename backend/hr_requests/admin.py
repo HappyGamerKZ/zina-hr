@@ -1,19 +1,20 @@
 from django.contrib import admin
+from unfold.admin import ModelAdmin, StackedInline, TabularInline
 
 from hr_requests.models import AdvanceDetails, HrRequest, RequestEvent, VacationDetails
 
 
-class VacationInline(admin.StackedInline):
+class VacationInline(StackedInline):
     model = VacationDetails
     extra = 0
 
 
-class AdvanceInline(admin.StackedInline):
+class AdvanceInline(StackedInline):
     model = AdvanceDetails
     extra = 0
 
 
-class EventInline(admin.TabularInline):
+class EventInline(TabularInline):
     model = RequestEvent
     extra = 0
     readonly_fields = ("from_status", "to_status", "actor", "comment", "created_at")
@@ -21,7 +22,7 @@ class EventInline(admin.TabularInline):
 
 
 @admin.register(HrRequest)
-class HrRequestAdmin(admin.ModelAdmin):
+class HrRequestAdmin(ModelAdmin):
     list_display = ("id", "type", "employee", "status", "created_at")
     list_filter = ("type", "status")
     search_fields = ("employee__full_name",)

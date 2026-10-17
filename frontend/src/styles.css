@@ -280,3 +280,25 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--primary); o
   .bottom-link small { font-size: 0.65rem; }
   .bottom-link.active { color: var(--primary); }
 }
+
+/* --- перетаскивание (dnd-kit) и повторное прохождение — временно, до дизайна --- */
+.ordering li { touch-action: manipulation; user-select: none; background: var(--surface); }
+.ordering li.dragging { opacity: 0.6; box-shadow: 0 6px 18px rgba(16, 24, 40, 0.18); position: relative; z-index: 2; }
+.chip { touch-action: manipulation; }
+.chip-ghost { opacity: 0.35; }
+.chip-overlay { box-shadow: 0 6px 18px rgba(16, 24, 40, 0.25); cursor: grabbing; }
+.blank.over, .word-bank.over { border-color: var(--primary); background: var(--primary-soft); }
+.restart-panel { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--border); }
+.restart-panel label { max-width: 220px; }
+
+/* --- блоки урока --- */
+.lesson-blocks { display: flex; flex-direction: column; gap: 14px; margin: 12px 0; }
+.block-heading { font-size: 1.15rem; margin: 6px 0 0; }
+.block-text { white-space: pre-line; line-height: 1.6; margin: 0; }
+.block-note { white-space: pre-line; margin: 0; padding: 12px 14px; border-left: 4px solid var(--primary); background: var(--primary-soft); border-radius: 8px; }
+.block-media { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.block-media img, .block-media video { width: 100%; max-height: 480px; object-fit: contain; border-radius: 10px; background: var(--surface-2); }
+.block-media iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 10px; }
+.block-media figcaption { color: var(--muted); font-size: 0.85rem; }
+.block-file { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; color: var(--text); }
+.block-file-icon { font-size: 1.4rem; }

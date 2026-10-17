@@ -60,13 +60,14 @@ def on_request_status_changed(request, old_status, actor, **_):
             )
 
 
-def on_course_assigned(assignment, actor, **_):
+def on_course_assigned(assignment, actor, repeat=False, **_):
     who = actor.employee.full_name if getattr(actor, "employee", None) else actor.username
     due = f" Срок: {assignment.due_date:%d.%m.%Y}." if assignment.due_date else ""
+    title = "Курс назначен повторно" if repeat else "Назначен курс"
     notify(
         _user_of(assignment.employee),
         NotificationType.COURSE_ASSIGNED,
-        f"Назначен курс «{assignment.course.title_ru}»",
+        f"{title} «{assignment.course.title_ru}»",
         f"Назначил(а): {who}.{due}",
         f"/academy/assignments/{assignment.pk}",
     )
@@ -91,8 +92,20 @@ def on_course_completed(assignment, **_):
     )
 
 
+def on_course_failed(assignment, **_):
+    """Попытки закончились → руководителю (или HR, если руководителя нет), чтобы назначить курс повторно."""
+    link = f"/academy/assignments/{assignment.pk}"
+    title = f"{assignment.employee.full_name} не сдал(а) курс «{assignment.course.title_ru}»"
+    body = "Попытки теста закончились. Курс можно назначить повторно."
+    manager_user = _user_of(assignment.employee.manager)
+    recipients = [manager_user] if manager_user else list(_hr_users())
+    for user in recipients:
+        notify(user, NotificationType.COURSE_FAILED, title, body, link)
+
+
 def register():
     events.subscribe(events.REQUEST_SUBMITTED, on_request_submitted)
     events.subscribe(events.REQUEST_STATUS_CHANGED, on_request_status_changed)
     events.subscribe(events.COURSE_ASSIGNED, on_course_assigned)
     events.subscribe(events.COURSE_COMPLETED, on_course_completed)
+    events.subscribe(events.COURSE_FAILED, on_course_failed)

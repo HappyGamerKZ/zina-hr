@@ -1,5 +1,6 @@
 import { Link, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { api, ApiError } from "../api/client";
@@ -8,7 +9,7 @@ import { useAuth } from "../auth/AuthContext";
 import { AssignmentBadge, Progress, useCourseTitle } from "../components/academy";
 import { fmtDate } from "../i18n";
 
-const KIND_ICON: Record<LessonKind, string> = { text: "📄", video: "🎬", pdf: "📑", quiz: "📝" };
+const KIND_ICON: Record<LessonKind, string> = { text: "📄", quiz: "📝" };
 
 export default function AssignmentPage() {
   const { id } = useParams();
@@ -51,6 +52,8 @@ export default function AssignmentPage() {
         <p className="muted small">
           {t("academy.progress")}: {a.progress_pct}%
           {a.score !== null && ` · ${t("academy.score")}: ${a.score}%`}
+          {a.best_score !== null && a.cycle > 1 && ` · ${t("academy.best", { score: a.best_score })}`}
+          {a.cycle > 1 && ` · ${t("academy.cycle", { n: a.cycle })}`}
           {a.due_date && ` · ${t("academy.due", { date: fmtDate(a.due_date) })}`}
           {a.assigned_by_name && ` · ${t("academy.assigned_by", { name: a.assigned_by_name })}`}
         </p>
@@ -59,6 +62,7 @@ export default function AssignmentPage() {
             {a.status === "assigned" ? "▶" : t("academy.continue")}: {next.title}
           </Link>
         )}
+        {(a.can_restart || a.can_reassign) && <RestartPanel id={a.id} selfRestart={a.can_restart} />}
         {!own && <p className="muted small">{t("academy.not_owner")}</p>}
       </section>
 
@@ -95,6 +99,37 @@ export default function AssignmentPage() {
           </ul>
         </section>
       ))}
+    </div>
+  );
+}
+
+/** «Пройти заново» для сотрудника (сданный курс) или «Назначить повторно» для HR / руководителя. */
+function RestartPanel({ id, selfRestart }: { id: number; selfRestart: boolean }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [due, setDue] = useState("");
+  const restart = useMutation({
+    mutationFn: () =>
+      api(`/academy/assignments/${id}/restart`, { method: "POST", body: selfRestart ? {} : { due_date: due || null } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["academy"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["profile"] });
+    },
+  });
+  return (
+    <div className="restart-panel">
+      {!selfRestart && (
+        <label>
+          {t("academy.due_date")}
+          <input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+        </label>
+      )}
+      <button className="btn-secondary" onClick={() => restart.mutate()} disabled={restart.isPending}>
+        ↻ {selfRestart ? t("academy.restart") : t("academy.reassign")}
+      </button>
+      <span className="muted small">{selfRestart ? t("academy.restart_hint") : t("academy.reassign_hint")}</span>
+      {restart.error && <p className="error">{restart.error.message}</p>}
     </div>
   );
 }

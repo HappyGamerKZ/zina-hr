@@ -7,6 +7,7 @@ class NotificationType(models.TextChoices):
     REQUEST_STATUS_CHANGED = "request_status_changed", "Статус заявки изменён"
     COURSE_ASSIGNED = "course_assigned", "Назначен курс"
     COURSE_COMPLETED = "course_completed", "Курс завершён"
+    COURSE_FAILED = "course_failed", "Курс не сдан"
     HR_TICKET_ANSWERED = "hr_ticket_answered", "HR ответил на вопрос"
 
 

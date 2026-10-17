@@ -63,13 +63,29 @@ class AssignmentSerializer(serializers.ModelSerializer):
     course = CourseShortSerializer(read_only=True)
     employee = serializers.SerializerMethodField()
     assigned_by_name = serializers.SerializerMethodField()
+    can_restart = serializers.SerializerMethodField()
+    can_reassign = serializers.SerializerMethodField()
 
     class Meta:
         model = CourseAssignment
         fields = [
-            "id", "course", "employee", "status", "progress_pct", "score", "due_date",
-            "assigned_by_name", "created_at", "started_at", "completed_at",
+            "id", "course", "employee", "status", "progress_pct", "score", "best_score", "cycle", "due_date",
+            "assigned_by_name", "created_at", "started_at", "completed_at", "can_restart", "can_reassign",
         ]
+
+    def _user(self):
+        request = self.context.get("request")
+        return request.user if request is not None else None
+
+    def get_can_restart(self, a) -> bool:
+        """Сотрудник может перепройти сданный курс."""
+        user = self._user()
+        return bool(user and services.can_restart_self(user, a))
+
+    def get_can_reassign(self, a) -> bool:
+        """HR / руководитель может назначить курс повторно (несданный или завершённый)."""
+        user = self._user()
+        return bool(user and services.can_reassign(user, a))
 
     def get_employee(self, a) -> dict:
         return {"id": a.employee_id, "full_name": a.employee.full_name}
@@ -83,7 +99,7 @@ class AssignmentSerializer(serializers.ModelSerializer):
 
 
 def _quiz_state(assignment, quiz) -> dict:
-    attempts = list(assignment.attempts.filter(quiz=quiz))
+    attempts = list(services.cycle_attempts(assignment, quiz))
     return {
         "id": quiz.id,
         "pass_score": quiz.pass_score,
@@ -138,6 +154,23 @@ def _public_question(q, assignment_id: int) -> dict:
     return data
 
 
+YOUTUBE_RE = re.compile(r"(?:youtube\.com/(?:watch\?v=|embed/|shorts/)|youtu\.be/)([\w-]{11})")
+
+
+def block_payload(block) -> dict:
+    """Блок урока для фронта. Для YouTube сразу отдаём адрес для встраивания."""
+    url = block.file.url if block.file else block.url
+    match = YOUTUBE_RE.search(block.url or "")
+    return {
+        "id": block.id,
+        "type": block.type,
+        "text": block.text,
+        "url": url,
+        "file_name": block.file.name.rsplit("/", 1)[-1] if block.file else "",
+        "embed_url": f"https://www.youtube-nocookie.com/embed/{match.group(1)}" if match else "",
+    }
+
+
 def lesson_payload(assignment, lesson) -> dict:
     lessons = services.ordered_lessons(assignment.course)
     done = services.completed_lesson_ids(assignment)
@@ -147,8 +180,7 @@ def lesson_payload(assignment, lesson) -> dict:
         "id": lesson.id,
         "title": lesson.title,
         "type": lesson.type,
-        "content": lesson.content,
-        "media_url": lesson.media_url,
+        "blocks": [block_payload(b) for b in lesson.blocks.all()],
         "module": lesson.module.title,
         "completed": lesson.id in done,
         "prev_lesson_id": ids[idx - 1] if idx > 0 else None,
@@ -157,7 +189,7 @@ def lesson_payload(assignment, lesson) -> dict:
     if lesson.type == LessonType.QUIZ and hasattr(lesson, "quiz"):
         quiz = lesson.quiz
         state = _quiz_state(assignment, quiz)
-        last = assignment.attempts.filter(quiz=quiz).last()
+        last = services.cycle_attempts(assignment, quiz).last()
         data["quiz"] = {
             **state,
             "questions": [_public_question(q, assignment.id) for q in quiz.questions.prefetch_related("options")],
@@ -199,3 +231,7 @@ class AssignInputSerializer(serializers.Serializer):
 
 class AttemptInputSerializer(serializers.Serializer):
     answers = serializers.DictField()
+
+
+class RestartInputSerializer(serializers.Serializer):
+    due_date = serializers.DateField(required=False, allow_null=True)

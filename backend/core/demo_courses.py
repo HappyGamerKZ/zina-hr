@@ -6,7 +6,11 @@
     ordering:           ("текст", N)                 — место в правильном порядке
     fill_blanks:        ("слово", N | None)          — номер пропуска {{N}} или лишнее слово
 """
-from academy.models import Course, CourseModule, Lesson, LessonType, Option, Question, QuestionType, Quiz
+from django.core.files.base import ContentFile
+
+from academy.models import (
+    BlockType, Course, CourseModule, Lesson, LessonBlock, LessonType, Option, Question, QuestionType, Quiz,
+)
 
 S, M, O, F = QuestionType.SINGLE, QuestionType.MULTIPLE, QuestionType.ORDERING, QuestionType.FILL_BLANKS
 
@@ -21,27 +25,35 @@ COURSES = [
         "duration_min": 25,
         "modules": [
             ("Знакомство с компанией", [
-                ("Кто мы", LessonType.TEXT, 5,
-                 "Jana Post — международная технологическая и логистическая платформа. Мы обеспечиваем "
-                 "полный цикл трансграничной торговли между Китаем и странами Центральной Азии.\n\n"
-                 "Маршрут: Китай → Казахстан → Центральная Азия (Кыргызстан, Узбекистан, Таджикистан, Монголия).\n\n"
-                 "Jana Post — это более 3 млн пользователей, более 1000 филиалов, 5 стран и собственная IT-платформа."),
-                ("Наши ценности", LessonType.TEXT, 5,
-                 "В основе Jana Post три ценности:\n\n"
-                 "1. Открытость — честно говорим с клиентами и коллегами, делимся информацией.\n"
-                 "2. Надёжность — выполняем обещания: посылка дойдёт, заявка будет обработана.\n"
-                 "3. Результат — оцениваем работу по пользе для клиента и компании."),
+                ("Кто мы", LessonType.TEXT, 5, [
+                    ("text", "Jana Post — международная технологическая и логистическая платформа. Мы обеспечиваем "
+                             "полный цикл трансграничной торговли между Китаем и странами Центральной Азии."),
+                    ("heading", "Наш маршрут"),
+                    ("image", "route.svg", "Китай → Казахстан → Центральная Азия"),
+                    ("text", "Из Казахстана посылки идут в Кыргызстан, Узбекистан, Таджикистан и Монголию."),
+                    ("heading", "Jana Post в цифрах"),
+                    ("text", "• более 3 млн пользователей\n• более 1000 филиалов\n• 5 стран\n• собственная IT-платформа"),
+                ]),
+                ("Наши ценности", LessonType.TEXT, 5, [
+                    ("text", "В основе Jana Post три ценности:"),
+                    ("heading", "1. Открытость"),
+                    ("text", "Честно говорим с клиентами и коллегами, делимся информацией."),
+                    ("heading", "2. Надёжность"),
+                    ("text", "Выполняем обещания: посылка дойдёт, заявка будет обработана."),
+                    ("heading", "3. Результат"),
+                    ("text", "Оцениваем работу по пользе для клиента и компании."),
+                    ("note", "Ценности пригодятся в итоговом тесте курса."),
+                ]),
             ]),
             ("HR-сервисы JanaМен", [
-                ("Отпуск и аванс в JanaМен", LessonType.TEXT, 5,
-                 "Заявку на отпуск или аванс сотрудник оформляет в JanaМен за пару минут.\n\n"
-                 "Маршрут заявки:\n"
-                 "1. Сотрудник создаёт заявку.\n"
-                 "2. Руководитель одобряет.\n"
-                 "3. HR оформляет приказ.\n"
-                 "4. Заявка автоматически передаётся в 1С и бухгалтерию.\n\n"
-                 "Ежегодный оплачиваемый отпуск по Трудовому кодексу РК — не менее 24 календарных дней. "
-                 "Статус заявки и уведомления видны в личном кабинете."),
+                ("Отпуск и аванс в JanaМен", LessonType.TEXT, 5, [
+                    ("text", "Заявку на отпуск или аванс сотрудник оформляет в JanaМен за пару минут."),
+                    ("heading", "Маршрут заявки"),
+                    ("text", "1. Сотрудник создаёт заявку.\n2. Руководитель одобряет.\n3. HR оформляет приказ.\n"
+                             "4. Заявка автоматически передаётся в 1С и бухгалтерию."),
+                    ("note", "Ежегодный оплачиваемый отпуск по Трудовому кодексу РК — не менее 24 календарных дней."),
+                    ("text", "Статус заявки и уведомления видны в личном кабинете."),
+                ]),
                 ("Итоговый тест", LessonType.QUIZ, 10, {
                     "pass_score": 70, "max_attempts": 3,
                     "questions": [
@@ -172,6 +184,38 @@ COURSES = [
 ]
 
 
+# Иллюстрации для демо-уроков генерируются кодом: в репозитории нет бинарных файлов.
+DEMO_IMAGES = {
+    "route.svg": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 160" font-family="sans-serif">
+  <rect width="640" height="160" rx="16" fill="#eef1f7"/>
+  <g font-size="18" text-anchor="middle" fill="#172033">
+    <rect x="30" y="50" width="150" height="60" rx="12" fill="#ffffff" stroke="#1f4fd8" stroke-width="2"/>
+    <text x="105" y="86">Китай</text>
+    <rect x="245" y="50" width="150" height="60" rx="12" fill="#ffffff" stroke="#1f4fd8" stroke-width="2"/>
+    <text x="320" y="86">Казахстан</text>
+    <rect x="460" y="50" width="150" height="60" rx="12" fill="#1f4fd8"/>
+    <text x="535" y="78" fill="#ffffff" font-size="15">Центральная</text>
+    <text x="535" y="98" fill="#ffffff" font-size="15">Азия</text>
+  </g>
+  <g stroke="#1f4fd8" stroke-width="3" fill="#1f4fd8">
+    <line x1="185" y1="80" x2="232" y2="80"/><polygon points="240,80 228,73 228,87"/>
+    <line x1="400" y1="80" x2="447" y2="80"/><polygon points="455,80 443,73 443,87"/>
+  </g>
+</svg>""",
+}
+
+
+def _create_blocks(lesson: Lesson, blocks: list) -> None:
+    for order, block in enumerate(blocks, start=1):
+        btype, value, *rest = block
+        if btype == BlockType.IMAGE:
+            b = LessonBlock(lesson=lesson, order=order, type=btype, text=rest[0] if rest else "")
+            b.file.save(f"demo-{value}", ContentFile(DEMO_IMAGES[value].encode()), save=False)
+            b.save()
+        else:
+            LessonBlock.objects.create(lesson=lesson, order=order, type=btype, text=value)
+
+
 def create_demo_courses() -> dict[str, Course]:
     courses = {}
     for c in COURSES:
@@ -181,8 +225,11 @@ def create_demo_courses() -> dict[str, Course]:
             for l_order, (title, ltype, minutes, body) in enumerate(lessons, start=1):
                 lesson = Lesson.objects.create(
                     module=module, order=l_order, title=title, type=ltype, duration_min=minutes,
-                    content=body if isinstance(body, str) else "",
                 )
+                if isinstance(body, str):
+                    body = [("text", p) for p in body.split("\n\n")]  # абзацы → текстовые блоки
+                if isinstance(body, list):
+                    _create_blocks(lesson, body)
                 if ltype == LessonType.QUIZ:
                     quiz = Quiz.objects.create(
                         lesson=lesson, pass_score=body["pass_score"], max_attempts=body["max_attempts"]

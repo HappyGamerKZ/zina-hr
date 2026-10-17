@@ -196,3 +196,105 @@ class AcademyTests(APITestCase):
         self.assertEqual(
             self.client.post(f"/api/v1/academy/assignments/{a_id}/lessons/{first.id}/complete").status_code, 403
         )
+
+    # --- повторное прохождение и переназначение ---
+
+    def pass_course(self, a_id):
+        self.complete_text_lessons(a_id)
+        res = self.submit(a_id, self.correct_answers())
+        self.assertTrue(res.data["passed"], res.data)
+
+    def test_employee_can_retake_completed_course(self):
+        a_id = self.enroll()
+        self.pass_course(a_id)
+        detail = self.client.get(f"/api/v1/academy/assignments/{a_id}").data
+        self.assertTrue(detail["can_restart"])
+
+        res = self.client.post(f"/api/v1/academy/assignments/{a_id}/restart", {}, format="json")
+        self.assertEqual(res.status_code, 200, res.data)
+        self.assertEqual((res.data["cycle"], res.data["status"], res.data["progress_pct"]), (2, "in_progress", 0))
+        self.assertIsNone(res.data["score"])
+        self.assertEqual(res.data["best_score"], 100)  # лучший результат сохранился
+        # уроки снова закрыты по порядку, тест снова доступен со всеми попытками
+        first, *_ = [l for m in res.data["modules"] for l in m["lessons"]]
+        self.assertEqual(first["status"], "available")
+        self.pass_course(a_id)
+        self.assertEqual(CourseAssignment.objects.get(pk=a_id).status, AssignmentStatus.COMPLETED)
+
+    def fail_course(self, a_id):
+        self.complete_text_lessons(a_id)
+        for _ in range(self.quiz().max_attempts):
+            self.submit(a_id, {})
+        self.assertEqual(CourseAssignment.objects.get(pk=a_id).status, AssignmentStatus.FAILED)
+
+    def test_failed_course_reassigned_by_manager(self):
+        a_id = self.enroll()
+        with self.captureOnCommitCallbacks(execute=True):
+            self.fail_course(a_id)
+        # руководителю пришло уведомление о несданном курсе
+        self.assertTrue(Notification.objects.filter(user=self.mgr, type="course_failed").exists())
+        # сам сотрудник перепройти несданный курс не может
+        res = self.client.post(f"/api/v1/academy/assignments/{a_id}/restart", {}, format="json")
+        self.assertEqual(res.status_code, 400)
+        first = self.lessons()[0]
+        self.assertEqual(
+            self.client.post(f"/api/v1/academy/assignments/{a_id}/lessons/{first.id}/complete").status_code, 400
+        )
+        # чужой руководитель назначить повторно не может
+        self.client.force_authenticate(self.other_mgr)
+        self.assertEqual(self.client.post(f"/api/v1/academy/assignments/{a_id}/restart", {}).status_code, 404)
+
+        self.client.force_authenticate(self.mgr)
+        self.assertTrue(self.client.get(f"/api/v1/academy/assignments/{a_id}").data["can_reassign"])
+        with self.captureOnCommitCallbacks(execute=True):
+            res = self.client.post(
+                f"/api/v1/academy/assignments/{a_id}/restart", {"due_date": "2030-01-31"}, format="json"
+            )
+        self.assertEqual(res.status_code, 200, res.data)
+        self.assertEqual((res.data["cycle"], res.data["status"], res.data["due_date"]), (2, "assigned", "2030-01-31"))
+        self.assertTrue(
+            Notification.objects.filter(user=self.emp, type="course_assigned", title__startswith="Курс назначен повторно").exists()
+        )
+        # у сотрудника снова все попытки, курс можно сдать
+        self.client.force_authenticate(self.emp)
+        self.pass_course(a_id)
+
+    def test_assign_endpoint_reassigns_failed_but_skips_active(self):
+        a_id = self.enroll()
+        self.fail_course(a_id)
+        self.client.force_authenticate(self.hr)
+        url = "/api/v1/academy/assignments"
+        res = self.client.post(url, {"course_id": self.course.id, "employee_ids": [self.emp_emp.id]}, format="json")
+        self.assertEqual([a["id"] for a in res.data], [a_id])
+        self.assertEqual(CourseAssignment.objects.get(pk=a_id).cycle, 2)
+        # курс уже снова в работе → повторное назначение пропускается
+        res = self.client.post(url, {"course_id": self.course.id, "employee_ids": [self.emp_emp.id]}, format="json")
+        self.assertEqual(res.data, [])
+
+    # --- уроки из блоков ---
+
+    def test_lesson_returns_blocks_in_order(self):
+        from academy.models import LessonBlock
+
+        a_id = self.enroll()
+        first = self.lessons()[0]  # «Кто мы»: текст, заголовок, изображение…
+        LessonBlock.objects.create(lesson=first, order=99, type="video", url="https://youtu.be/dQw4w9WgXcQ")
+        data = self.client.get(f"/api/v1/academy/assignments/{a_id}/lessons/{first.id}").data
+        types = [b["type"] for b in data["blocks"]]
+        self.assertEqual(types[:3], ["text", "heading", "image"])
+        image = data["blocks"][2]
+        self.assertTrue(image["url"].startswith("/media/academy/"))
+        self.assertTrue(image["url"].endswith(".svg"))
+        video = data["blocks"][-1]
+        self.assertEqual(video["embed_url"], "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ")
+
+    def test_block_validation(self):
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        from academy.models import LessonBlock
+
+        lesson = self.lessons()[0]
+        with self.assertRaises(DjangoValidationError):
+            LessonBlock(lesson=lesson, type="text", text="  ").full_clean()
+        with self.assertRaises(DjangoValidationError):
+            LessonBlock(lesson=lesson, type="image").full_clean()
+        LessonBlock(lesson=lesson, type="video", url="https://youtu.be/dQw4w9WgXcQ").full_clean()

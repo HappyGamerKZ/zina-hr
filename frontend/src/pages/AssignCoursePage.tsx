@@ -23,8 +23,17 @@ export default function AssignCoursePage() {
   const [due, setDue] = useState("");
   const [done, setDone] = useState<number | null>(null);
 
-  const alreadyHas = (employeeId: number) =>
-    !!teamAssignments.data?.some((a) => a.employee.id === employeeId && a.course.id === courseId);
+  const existing = (employeeId: number) =>
+    teamAssignments.data?.find((a) => a.employee.id === employeeId && a.course.id === courseId);
+  // Курс в работе — назначать нельзя; завершён или не сдан — назначится повторно (новое прохождение)
+  const alreadyHas = (employeeId: number) => {
+    const a = existing(employeeId);
+    return !!a && (a.status === "assigned" || a.status === "in_progress");
+  };
+  const willReassign = (employeeId: number) => {
+    const a = existing(employeeId);
+    return !!a && (a.status === "completed" || a.status === "failed");
+  };
 
   const assign = useMutation({
     mutationFn: () =>
@@ -81,6 +90,7 @@ export default function AssignCoursePage() {
               />
               {m.full_name} <span className="muted small">· {m.position}</span>
               {alreadyHas(m.id) && <span className="muted small"> · {t("academy.already_assigned")}</span>}
+              {willReassign(m.id) && <span className="muted small"> · {t("academy.will_reassign")}</span>}
             </label>
           ))}
         </fieldset>

@@ -48,7 +48,7 @@ class ProfileSerializer(serializers.ModelSerializer):
         from academy.serializers import AssignmentSerializer
 
         assignments = emp.course_assignments.select_related("course", "employee", "assigned_by__employee")
-        return AssignmentSerializer(assignments, many=True).data
+        return AssignmentSerializer(assignments, many=True, context=self.context).data
 
 
 class TeamMemberSerializer(serializers.ModelSerializer):

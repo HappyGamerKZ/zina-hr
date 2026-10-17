@@ -1,4 +1,4 @@
-"""Jana Academy: курс → модули → уроки (текст / видео / PDF / тест) → вопросы → варианты.
+"""Jana Academy: курс → модули → уроки (блоки: заголовки, текст, фото, видео, файлы; тест) → вопросы → варианты.
 
 Типы вопросов и как хранится правильный ответ:
     single       — один верный вариант:            Option.is_correct
@@ -10,20 +10,22 @@
 Правильные ответы (is_correct, correct_position) никогда не отдаются на фронт до проверки.
 """
 from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
 from django.db import models
 
 from org.models import Employee
 
 
 class Course(models.Model):
-    title_ru = models.CharField(max_length=200)
-    title_kk = models.CharField(max_length=200, blank=True)
-    description_ru = models.TextField(blank=True)
-    description_kk = models.TextField(blank=True)
-    cover_emoji = models.CharField(max_length=8, default="📘")
-    duration_min = models.PositiveIntegerField(default=30)
-    is_published = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    title_ru = models.CharField("название (рус.)", max_length=200)
+    title_kk = models.CharField("название (каз.)", max_length=200, blank=True)
+    description_ru = models.TextField("описание (рус.)", blank=True)
+    description_kk = models.TextField("описание (каз.)", blank=True)
+    cover_emoji = models.CharField("значок", max_length=8, default="📘")
+    duration_min = models.PositiveIntegerField("длительность, мин", default=30)
+    is_published = models.BooleanField("опубликован", default=True)
+    created_at = models.DateTimeField("создан", auto_now_add=True)
 
     class Meta:
         verbose_name = "курс"
@@ -35,9 +37,9 @@ class Course(models.Model):
 
 
 class CourseModule(models.Model):
-    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="modules")
-    order = models.PositiveIntegerField(default=1)
-    title = models.CharField(max_length=200)
+    course = models.ForeignKey(Course, verbose_name="курс", on_delete=models.CASCADE, related_name="modules")
+    order = models.PositiveIntegerField("порядок", default=1)
+    title = models.CharField("название", max_length=200)
 
     class Meta:
         verbose_name = "модуль"
@@ -49,20 +51,16 @@ class CourseModule(models.Model):
 
 
 class LessonType(models.TextChoices):
-    TEXT = "text", "Текст"
-    VIDEO = "video", "Видео"
-    PDF = "pdf", "PDF"
-    QUIZ = "quiz", "Тест"
+    TEXT = "text", "Материал"  # содержимое собирается из блоков (LessonBlock)
+    QUIZ = "quiz", "Тест"      # блоки — вступление, затем вопросы теста
 
 
 class Lesson(models.Model):
-    module = models.ForeignKey(CourseModule, on_delete=models.CASCADE, related_name="lessons")
-    order = models.PositiveIntegerField(default=1)
-    title = models.CharField(max_length=200)
-    type = models.CharField(max_length=8, choices=LessonType.choices, default=LessonType.TEXT)
-    content = models.TextField("текст урока", blank=True)
-    media_url = models.URLField("ссылка на видео / PDF", blank=True)
-    duration_min = models.PositiveIntegerField(default=5)
+    module = models.ForeignKey(CourseModule, verbose_name="модуль", on_delete=models.CASCADE, related_name="lessons")
+    order = models.PositiveIntegerField("порядок", default=1)
+    title = models.CharField("название", max_length=200)
+    type = models.CharField("тип урока", max_length=8, choices=LessonType.choices, default=LessonType.TEXT)
+    duration_min = models.PositiveIntegerField("длительность, мин", default=5)
 
     class Meta:
         verbose_name = "урок"
@@ -73,8 +71,56 @@ class Lesson(models.Model):
         return f"{self.module} / {self.title}"
 
 
+class BlockType(models.TextChoices):
+    HEADING = "heading", "Заголовок"
+    TEXT = "text", "Текст"
+    NOTE = "note", "Важно (выделенный текст)"
+    IMAGE = "image", "Изображение"
+    VIDEO = "video", "Видео"
+    FILE = "file", "Файл (PDF, презентация, документ)"
+
+
+IMAGE_EXT = ["jpg", "jpeg", "png", "gif", "webp", "svg"]
+VIDEO_EXT = ["mp4", "webm"]
+FILE_EXT = ["pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx"]
+
+
+class LessonBlock(models.Model):
+    """Блок урока — как в конструкторе сайта: заголовки, текст, фото, видео и файлы в любом порядке."""
+
+    lesson = models.ForeignKey(Lesson, verbose_name="урок", on_delete=models.CASCADE, related_name="blocks")
+    order = models.PositiveIntegerField("порядок", default=0)
+    type = models.CharField("тип блока", max_length=8, choices=BlockType.choices, default=BlockType.TEXT)
+    text = models.TextField("текст / подпись", blank=True)
+    file = models.FileField(
+        "файл",
+        upload_to="academy/%Y/%m/", blank=True,
+        validators=[FileExtensionValidator(IMAGE_EXT + VIDEO_EXT + FILE_EXT)],
+    )
+    url = models.URLField("ссылка (YouTube или внешнее видео)", blank=True)
+
+    class Meta:
+        verbose_name = "блок урока"
+        verbose_name_plural = "блоки урока"
+        ordering = ["lesson", "order", "id"]
+
+    def __str__(self):
+        return f"{self.get_type_display()}: {(self.text or self.file.name or self.url)[:60]}"
+
+    def clean(self):
+        ext = self.file.name.rsplit(".", 1)[-1].lower() if self.file else ""
+        if self.type in (BlockType.HEADING, BlockType.TEXT, BlockType.NOTE) and not self.text.strip():
+            raise ValidationError({"text": "Заполните текст блока"})
+        if self.type == BlockType.IMAGE and ext not in IMAGE_EXT:
+            raise ValidationError({"file": f"Загрузите изображение: {', '.join(IMAGE_EXT)}"})
+        if self.type == BlockType.VIDEO and not self.url and ext not in VIDEO_EXT:
+            raise ValidationError({"file": "Загрузите видео (mp4, webm) или укажите ссылку"})
+        if self.type == BlockType.FILE and ext not in FILE_EXT:
+            raise ValidationError({"file": f"Загрузите файл: {', '.join(FILE_EXT)}"})
+
+
 class Quiz(models.Model):
-    lesson = models.OneToOneField(Lesson, on_delete=models.CASCADE, related_name="quiz")
+    lesson = models.OneToOneField(Lesson, verbose_name="урок", on_delete=models.CASCADE, related_name="quiz")
     pass_score = models.PositiveIntegerField("проходной балл, %", default=70)
     max_attempts = models.PositiveIntegerField("попыток (0 — без ограничений)", default=3)
 
@@ -94,11 +140,11 @@ class QuestionType(models.TextChoices):
 
 
 class Question(models.Model):
-    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name="questions")
-    order = models.PositiveIntegerField(default=1)
-    type = models.CharField(max_length=16, choices=QuestionType.choices)
-    text = models.TextField(help_text="Для fill_blanks пропуски обозначаются {{1}}, {{2}}, …")
-    points = models.PositiveIntegerField(default=1)
+    quiz = models.ForeignKey(Quiz, verbose_name="тест", on_delete=models.CASCADE, related_name="questions")
+    order = models.PositiveIntegerField("порядок", default=1)
+    type = models.CharField("тип вопроса", max_length=16, choices=QuestionType.choices)
+    text = models.TextField("текст вопроса", help_text="Для «слов в пропуски» пропуски обозначаются {{1}}, {{2}}, …")
+    points = models.PositiveIntegerField("баллы", default=1)
     explanation = models.TextField("пояснение после проверки", blank=True)
 
     class Meta:
@@ -111,10 +157,11 @@ class Question(models.Model):
 
 
 class Option(models.Model):
-    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="options")
-    text = models.CharField(max_length=300)
-    is_correct = models.BooleanField(default=False, help_text="single / multiple")
+    question = models.ForeignKey(Question, verbose_name="вопрос", on_delete=models.CASCADE, related_name="options")
+    text = models.CharField("текст варианта", max_length=300)
+    is_correct = models.BooleanField("верный вариант", default=False, help_text="один / несколько вариантов")
     correct_position = models.PositiveIntegerField(
+        "место / номер пропуска",
         null=True, blank=True,
         help_text="ordering: место в правильном порядке (1..N); fill_blanks: номер пропуска, пусто — лишнее слово",
     )
@@ -138,18 +185,22 @@ class AssignmentStatus(models.TextChoices):
 class CourseAssignment(models.Model):
     """Курс у конкретного сотрудника: назначен HR / руководителем или выбран самим из каталога."""
 
-    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="assignments")
-    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="course_assignments")
+    course = models.ForeignKey(Course, verbose_name="курс", on_delete=models.CASCADE, related_name="assignments")
+    employee = models.ForeignKey(Employee, verbose_name="сотрудник", on_delete=models.CASCADE, related_name="course_assignments")
     assigned_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+        settings.AUTH_USER_MODEL, null=True, blank=True, verbose_name="назначил(а)", on_delete=models.SET_NULL, related_name="+"
     )
-    due_date = models.DateField(null=True, blank=True)
-    status = models.CharField(max_length=16, choices=AssignmentStatus.choices, default=AssignmentStatus.ASSIGNED)
-    progress_pct = models.PositiveIntegerField(default=0)
-    score = models.PositiveIntegerField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    started_at = models.DateTimeField(null=True, blank=True)
-    completed_at = models.DateTimeField(null=True, blank=True)
+    due_date = models.DateField("срок", null=True, blank=True)
+    status = models.CharField("статус", max_length=16, choices=AssignmentStatus.choices, default=AssignmentStatus.ASSIGNED)
+    progress_pct = models.PositiveIntegerField("прогресс, %", default=0)
+    score = models.PositiveIntegerField("результат текущего прохождения", null=True, blank=True)
+    best_score = models.PositiveIntegerField("лучший результат за все прохождения", null=True, blank=True)
+    # Номер прохождения: повторное прохождение / переназначение начинает новый цикл,
+    # прогресс и попытки прошлых циклов остаются в истории.
+    cycle = models.PositiveIntegerField("прохождение №", default=1)
+    created_at = models.DateTimeField("назначен", auto_now_add=True)
+    started_at = models.DateTimeField("начат", null=True, blank=True)
+    completed_at = models.DateTimeField("завершён", null=True, blank=True)
 
     class Meta:
         verbose_name = "назначение курса"
@@ -164,20 +215,24 @@ class CourseAssignment(models.Model):
 class LessonProgress(models.Model):
     assignment = models.ForeignKey(CourseAssignment, on_delete=models.CASCADE, related_name="lesson_progress")
     lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name="+")
+    cycle = models.PositiveIntegerField(default=1)
     completed_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=["assignment", "lesson"], name="uniq_lesson_progress")]
+        constraints = [
+            models.UniqueConstraint(fields=["assignment", "lesson", "cycle"], name="uniq_lesson_progress_cycle")
+        ]
 
 
 class QuizAttempt(models.Model):
-    assignment = models.ForeignKey(CourseAssignment, on_delete=models.CASCADE, related_name="attempts")
-    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name="attempts")
-    answers = models.JSONField()
-    details = models.JSONField(help_text="результат по каждому вопросу")
-    score = models.PositiveIntegerField()
-    passed = models.BooleanField()
-    created_at = models.DateTimeField(auto_now_add=True)
+    assignment = models.ForeignKey(CourseAssignment, verbose_name="назначение", on_delete=models.CASCADE, related_name="attempts")
+    quiz = models.ForeignKey(Quiz, verbose_name="тест", on_delete=models.CASCADE, related_name="attempts")
+    cycle = models.PositiveIntegerField("прохождение №", default=1)
+    answers = models.JSONField("ответы", )
+    details = models.JSONField("разбор", help_text="результат по каждому вопросу")
+    score = models.PositiveIntegerField("результат, %", )
+    passed = models.BooleanField("сдан", )
+    created_at = models.DateTimeField("дата", auto_now_add=True)
 
     class Meta:
         verbose_name = "попытка теста"

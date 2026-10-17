@@ -80,7 +80,17 @@ export interface HrRequestDetail extends HrRequest {
 // --- Jana Academy ---
 
 export type AssignmentStatus = "assigned" | "in_progress" | "completed" | "failed";
-export type LessonKind = "text" | "video" | "pdf" | "quiz";
+export type LessonKind = "text" | "quiz"; // материал из блоков или тест
+export type BlockKind = "heading" | "text" | "note" | "image" | "video" | "file";
+
+export interface LessonBlock {
+  id: number;
+  type: BlockKind;
+  text: string;
+  url: string; // загруженный файл (/media/...) или внешняя ссылка
+  file_name: string;
+  embed_url: string; // YouTube для встраивания
+}
 export type QuestionKind = "single" | "multiple" | "ordering" | "fill_blanks";
 
 export interface CourseShort {
@@ -105,11 +115,15 @@ export interface Assignment {
   status: AssignmentStatus;
   progress_pct: number;
   score: number | null;
+  best_score: number | null;
+  cycle: number;
   due_date: string | null;
   assigned_by_name: string | null;
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
+  can_restart: boolean; // сотрудник может перепройти сданный курс
+  can_reassign: boolean; // HR / руководитель может назначить повторно
 }
 
 export interface QuizState {
@@ -169,8 +183,7 @@ export interface LessonDetail {
   id: number;
   title: string;
   type: LessonKind;
-  content: string;
-  media_url: string;
+  blocks: LessonBlock[];
   module: string;
   completed: boolean;
   prev_lesson_id: number | null;

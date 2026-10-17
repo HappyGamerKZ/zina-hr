@@ -12,6 +12,7 @@ from academy.serializers import (
     AssignmentDetailSerializer,
     AssignmentSerializer,
     AttemptInputSerializer,
+    RestartInputSerializer,
     CourseDetailSerializer,
     CourseListSerializer,
     attempt_payload,
@@ -42,7 +43,7 @@ class CourseViewSet(viewsets.ReadOnlyModelViewSet):
     def enroll(self, request, pk=None):
         """Записаться на курс самому."""
         assignment = services.enroll(request.user, self.get_object())
-        return Response(AssignmentSerializer(assignment).data, status=status.HTTP_201_CREATED)
+        return Response(AssignmentSerializer(assignment, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
 
 class AssignmentViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
@@ -82,7 +83,16 @@ class AssignmentViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
         created = services.assign(
             request.user, course, data.validated_data["employee_ids"], data.validated_data.get("due_date")
         )
-        return Response(AssignmentSerializer(created, many=True).data, status=status.HTTP_201_CREATED)
+        return Response(AssignmentSerializer(created, many=True, context={"request": request}).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(request=RestartInputSerializer, responses=AssignmentDetailSerializer)
+    @action(detail=True, methods=["post"])
+    def restart(self, request, pk=None):
+        """Пройти курс заново (сотрудник — сданный курс) или назначить повторно (HR / руководитель)."""
+        data = RestartInputSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        assignment = services.restart(request.user, self.get_object(), data.validated_data.get("due_date"))
+        return Response(AssignmentDetailSerializer(assignment, context={"request": request}).data)
 
     def _own_lesson(self, request, lesson_id):
         assignment = self.get_object()  # 404 вне зоны видимости
@@ -106,7 +116,7 @@ class AssignmentViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
     def complete_lesson(self, request, pk=None, lesson_id=None):
         assignment, lesson = self._own_lesson(request, lesson_id)
         assignment = services.complete_lesson(request.user, assignment, lesson)
-        return Response(AssignmentDetailSerializer(assignment).data)
+        return Response(AssignmentDetailSerializer(assignment, context={"request": request}).data)
 
     @extend_schema(request=AttemptInputSerializer)
     @action(detail=True, methods=["post"], url_path=r"quizzes/(?P<quiz_id>\d+)/attempts")

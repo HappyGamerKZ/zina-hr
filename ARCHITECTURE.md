@@ -14,7 +14,7 @@
 | Frontend | React 18 + TypeScript + Vite, React Router, собственный CSS с токенами (светлая/тёмная тема) | быстрый старт, адаптивность mobile-first |
 | Данные на фронте | TanStack Query, клиент сгенерирован из OpenAPI (`openapi-typescript`) | типы API всегда совпадают с backend |
 | Локализация | `react-i18next`, файлы `ru.json` / `kk.json` | переключатель RU/KZ (бонус) |
-| Backend | Python 3.12 + Django 5 + Django REST Framework, drf-spectacular (OpenAPI, `/api/docs`) | готовые auth, ORM, миграции, Django Admin для HR-контента |
+| Backend | Python 3.12 + Django 5.2 LTS + Django REST Framework, drf-spectacular (OpenAPI, `/api/docs`), тема админки django-unfold | готовые auth, ORM, миграции, удобная Django Admin для HR-контента |
 | Аутентификация | Django session auth (cookie `sessionid`, httpOnly) + CSRF-токен в заголовке `X-CSRFToken` | фронт и API на одном домене; права проверяет сервер |
 | БД | PostgreSQL 16 + расширение `pgvector` (`pgvector.django.VectorField`) | одна БД и для данных, и для векторного поиска |
 | AI | LLM через абстракцию `LLMProvider` (Claude API; ключ в `.env`) + локальные эмбеддинги `multilingual-e5-small` | RU/KZ, работает без внешнего сервиса эмбеддингов |
@@ -154,13 +154,14 @@ erDiagram
 |---|---|
 | `Course` | `title_ru`, `title_kk`, `description_ru/kk`, `cover_emoji`, `duration_min`, `is_published` |
 | `CourseModule` | `course`, `order`, `title` |
-| `Lesson` | `module`, `order`, `title`, `type` (`text`/`video`/`pdf`/`quiz`), `content`, `media_url`, `duration_min` |
+| `Lesson` | `module`, `order`, `title`, `type` (`text` — материал из блоков / `quiz` — тест), `duration_min` |
+| `LessonBlock` | `lesson`, `order`, `type` (`heading`/`text`/`note`/`image`/`video`/`file`), `text` (текст или подпись), `file` (загрузка в `/media/`), `url` (YouTube или внешнее видео) — урок собирается из блоков, как в конструкторе сайта |
 | `Quiz` | `lesson` (1:1), `pass_score` (%), `max_attempts` (0 — без ограничений) |
 | `Question` | `quiz`, `order`, `type` (`single`/`multiple`/`ordering`/`fill_blanks`), `text` (для `fill_blanks` — с пропусками `{{1}}`, `{{2}}`), `points`, `explanation` |
 | `Option` | `question`, `text`, `is_correct` (single/multiple), `correct_position` (ordering — место 1..N; fill_blanks — номер пропуска, пусто — лишнее слово). **Не отдаются на фронт до проверки** |
-| `CourseAssignment` | `course`, `employee`, `assigned_by`, `due_date`, `status` (`assigned`/`in_progress`/`completed`/`failed`), `progress_pct`, `score`, `started_at`, `completed_at` — **видно в профиле** |
-| `LessonProgress` | `assignment`, `lesson`, `completed_at` |
-| `QuizAttempt` | `assignment`, `quiz`, `answers` (JSON), `details` (результат по вопросам), `score`, `passed` |
+| `CourseAssignment` | `course`, `employee`, `assigned_by`, `due_date`, `status` (`assigned`/`in_progress`/`completed`/`failed`), `progress_pct`, `score` (текущее прохождение), `best_score`, `cycle` (номер прохождения), `started_at`, `completed_at` — **видно в профиле** |
+| `LessonProgress` | `assignment`, `lesson`, `cycle`, `completed_at` |
+| `QuizAttempt` | `assignment`, `quiz`, `cycle`, `answers` (JSON), `details` (результат по вопросам), `score`, `passed` |
 
 **AI Jana и база знаний**
 
@@ -306,8 +307,9 @@ flowchart LR
 - Варианты `ordering` и `fill_blanks` перемешиваются стабильно для каждого сотрудника (не прыгают при обновлении страницы).
 - `progress_pct` = пройденные уроки / все уроки; при 100% → `completed`, `score` = лучший результат по тестам курса.
 - Назначение: HR — любому, руководитель — только своим подчинённым; сам сотрудник может записаться из каталога.
+- Повторное прохождение (`POST /academy/assignments/{id}/restart`): сотрудник может перепройти сданный курс; несданный курс назначает повторно HR или руководитель (сотрудник получает уведомление, руководителю приходит уведомление о несданном курсе). Каждое прохождение — новый `cycle`: прогресс и попытки считаются заново, история и `best_score` сохраняются.
 - Связь с профилем: `/me/profile` → `learning[]`, `/me/dashboard` → `courses[]`; руководитель видит обучение подчинённого в `/team/{id}` и `/academy/assignments?scope=team`, но не проходит курс за него.
-- Контент (курсы, уроки, тесты, вопросы, варианты) редактируется в Django Admin.
+- Контент редактируется в Django Admin (тема django-unfold): курс → модули → «конструктор урока» (блоки перетаскиваются, есть превью картинок и загрузка файлов до 200 МБ) → тест → вопросы → варианты. Файлы хранятся в томе `media`, nginx отдаёт их по `/media/` с запретом скриптов (CSP).
 - Seed (`core/demo_courses.py`): «Адаптация в Jana Post», «Информационная безопасность» (в каждом тесте все 4 типа вопросов) и «Клиентский сервис в отделении» для записи из каталога.
 
 ---

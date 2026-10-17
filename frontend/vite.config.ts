@@ -14,6 +14,7 @@ export default defineConfig({
       "/api": backend,
       "/admin": backend,
       "/static": backend,
+      "/media": backend,
     },
   },
 });

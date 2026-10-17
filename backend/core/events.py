@@ -10,6 +10,7 @@ REQUEST_SUBMITTED = "request_submitted"
 REQUEST_STATUS_CHANGED = "request_status_changed"
 COURSE_ASSIGNED = "course_assigned"
 COURSE_COMPLETED = "course_completed"
+COURSE_FAILED = "course_failed"
 
 _handlers: dict[str, list[Callable]] = defaultdict(list)
 

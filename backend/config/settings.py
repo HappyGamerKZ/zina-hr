@@ -1,4 +1,6 @@
 import os
+import sys
+import tempfile
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -16,6 +18,7 @@ CSRF_TRUSTED_ORIGINS = env_list(
 )
 
 INSTALLED_APPS = [
+    "unfold",  # тема Django Admin — должна стоять до django.contrib.admin
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -99,7 +102,16 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = os.environ.get("DJANGO_STATIC_ROOT", str(BASE_DIR / "staticfiles"))
 
+# Загруженные файлы (фото, видео, PDF в уроках Academy). В docker compose — общий том с nginx.
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.environ.get("DJANGO_MEDIA_ROOT", str(BASE_DIR / "media"))
+if len(sys.argv) > 1 and sys.argv[1] == "test":
+    MEDIA_ROOT = tempfile.mkdtemp(prefix="janamen-test-media-")  # тесты не мусорят в общем томе
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Вход в Django Admin без ?next= ведёт в админку, а не на несуществующий /accounts/profile/
+LOGIN_REDIRECT_URL = "/admin/"
 
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
@@ -123,3 +135,44 @@ ADVANCE_MAX_AMOUNT = 500_000
 
 # Куда уходят утверждённые HR заявки. mock_accounting — заглушка (integrations/adapters.py).
 ACCOUNTING_PROVIDER = os.environ.get("ACCOUNTING_PROVIDER", "mock_accounting")
+
+# Тема Django Admin (django-unfold): меню по разделам HR-платформы
+from django.urls import reverse_lazy  # noqa: E402
+
+
+def _admin_link(title, icon, model):
+    app, name = model.split(".")
+    return {"title": title, "icon": icon, "link": reverse_lazy(f"admin:{app}_{name}_changelist")}
+
+
+UNFOLD = {
+    "SITE_TITLE": "JanaМен",
+    "SITE_HEADER": "JanaМен — администрирование",
+    "SITE_SYMBOL": "badge",
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": True,
+        "navigation": [
+            {"title": "Jana Academy", "items": [
+                _admin_link("Курсы", "school", "academy.course"),
+                _admin_link("Модули", "folder", "academy.coursemodule"),
+                _admin_link("Уроки (конструктор)", "article", "academy.lesson"),
+                _admin_link("Тесты", "quiz", "academy.quiz"),
+                _admin_link("Вопросы", "help", "academy.question"),
+                _admin_link("Назначения", "assignment_ind", "academy.courseassignment"),
+                _admin_link("Попытки тестов", "fact_check", "academy.quizattempt"),
+            ]},
+            {"title": "Заявки", "items": [
+                _admin_link("Заявки", "description", "hr_requests.hrrequest"),
+                _admin_link("Передачи в 1С / бухгалтерию", "receipt_long", "integrations.accountingexport"),
+                _admin_link("Уведомления", "notifications", "notifications.notification"),
+            ]},
+            {"title": "Люди и структура", "items": [
+                _admin_link("Сотрудники", "badge", "org.employee"),
+                _admin_link("Подразделения", "apartment", "org.department"),
+                _admin_link("Должности", "work", "org.position"),
+                _admin_link("Пользователи", "person", "accounts.user"),
+            ]},
+        ],
+    },
+}

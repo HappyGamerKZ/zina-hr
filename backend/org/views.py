@@ -25,7 +25,7 @@ def _own_employee(user):
 class ProfileView(APIView):
     @extend_schema(responses=ProfileSerializer)
     def get(self, request):
-        return Response(ProfileSerializer(_own_employee(request.user)).data)
+        return Response(ProfileSerializer(_own_employee(request.user), context={"request": request}).data)
 
 
 class DashboardView(APIView):
@@ -39,7 +39,7 @@ class DashboardView(APIView):
         )[:5]
         notifications = Notification.objects.filter(user=user)
         visible_requests = HrRequest.objects.filter(employee__in=visible_employees(user))
-        profile = ProfileSerializer(employee).data
+        profile = ProfileSerializer(employee, context={"request": request}).data
         # незавершённые курсы — первыми
         courses = sorted(profile["learning"], key=lambda a: a["status"] in ("completed", "failed"))
         return Response({
@@ -76,4 +76,4 @@ class TeamMemberView(APIView):
         emp = get_object_or_404(
             team_members(request.user).select_related(*PROFILE_RELATED), pk=employee_id
         )
-        return Response(ProfileSerializer(emp).data)
+        return Response(ProfileSerializer(emp, context={"request": request}).data)

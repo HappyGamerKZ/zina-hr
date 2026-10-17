@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { api, ApiError } from "../api/client";
 import type { LessonDetail } from "../api/types";
+import LessonBlocks from "../components/LessonBlocks";
 import QuizView from "../components/QuizView";
 
 export default function LessonPage() {
@@ -49,17 +50,7 @@ export default function LessonPage() {
           {lesson.module} · {t(`academy.kind.${lesson.type}`)}
         </span>
         <h1>{lesson.title}</h1>
-        {lesson.content && <div className="lesson-content">{lesson.content}</div>}
-        {lesson.media_url && lesson.type === "video" && (
-          <video className="lesson-media" src={lesson.media_url} controls />
-        )}
-        {lesson.media_url && (
-          <p>
-            <a href={lesson.media_url} target="_blank" rel="noreferrer">
-              {t("academy.open_media")} ↗
-            </a>
-          </p>
-        )}
+        <LessonBlocks blocks={lesson.blocks} />
         {lesson.type !== "quiz" && (
           <div className="row">
             {lesson.completed ? (
