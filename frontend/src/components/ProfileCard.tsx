@@ -2,6 +2,8 @@ import { useTranslation } from "react-i18next";
 
 import type { Profile } from "../api/types";
 import { fmtDate } from "../i18n";
+import Icon from "./Icon";
+import { icons } from "./icons";
 import { AssignmentRow } from "./academy";
 
 export default function ProfileCard({ profile }: { profile: Profile }) {
@@ -21,7 +23,10 @@ export default function ProfileCard({ profile }: { profile: Profile }) {
     <div className="stack">
       <section className="card">
         <h1>{profile.full_name}</h1>
-        <p className="readonly-note">🔒 {t("common.from_zup")}</p>
+        <p className="readonly-note">
+          <Icon src={icons.readOnly} size={16} />
+          {t("common.from_zup")}
+        </p>
         <dl className="fields">
           {rows.map(([k, v]) => (
             <div key={k}>

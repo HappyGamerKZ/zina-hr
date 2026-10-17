@@ -4,6 +4,9 @@ import { useTranslation } from "react-i18next";
 
 import { api, ApiError } from "../api/client";
 import type { LessonDetail } from "../api/types";
+import BackLink from "../components/BackLink";
+import Icon from "../components/Icon";
+import { icons } from "../components/icons";
 import LessonBlocks from "../components/LessonBlocks";
 import QuizView from "../components/QuizView";
 
@@ -34,7 +37,7 @@ export default function LessonPage() {
   if (error instanceof ApiError && error.status === 403)
     return (
       <div className="stack narrow">
-        <Link to={base} className="muted">{t("academy.back_to_course")}</Link>
+        <BackLink to={base}>{t("academy.back_to_course")}</BackLink>
         <p className="error">{error.message}</p>
       </div>
     );
@@ -42,9 +45,7 @@ export default function LessonPage() {
 
   return (
     <div className="stack narrow">
-      <Link to={base} className="muted">
-        {t("academy.back_to_course")}
-      </Link>
+      <BackLink to={base}>{t("academy.back_to_course")}</BackLink>
       <section className="card">
         <span className="muted small">
           {lesson.module} · {t(`academy.kind.${lesson.type}`)}
@@ -54,7 +55,9 @@ export default function LessonPage() {
         {lesson.type !== "quiz" && (
           <div className="row">
             {lesson.completed ? (
-              <span className="status status-ok">✓ {t("academy.completed")}</span>
+              <span className="status status-ok">
+                <Icon src={icons.done} size={14} /> {t("academy.completed")}
+              </span>
             ) : (
               <button className="btn-primary" onClick={() => complete.mutate()} disabled={complete.isPending}>
                 {t("academy.mark_done")}
@@ -70,12 +73,14 @@ export default function LessonPage() {
       <div className="row lesson-nav">
         {lesson.prev_lesson_id && (
           <Link to={`${base}/lessons/${lesson.prev_lesson_id}`} className="btn-ghost">
+            <Icon src={icons.back} size={16} />
             {t("academy.prev")}
           </Link>
         )}
         {lesson.next_lesson_id && lesson.completed && (
           <Link to={`${base}/lessons/${lesson.next_lesson_id}`} className="btn-ghost">
             {t("academy.next")}
+            <Icon src={icons.forward} size={16} />
           </Link>
         )}
       </div>

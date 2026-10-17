@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 
 import { api } from "../api/client";
 import type { HrRequest, RequestType } from "../api/types";
+import Icon from "../components/Icon";
+import { icons } from "../components/icons";
 import RequestList from "../components/RequestList";
 
 export default function RequestsPage() {
@@ -21,10 +23,12 @@ export default function RequestsPage() {
         <h1>{t("requests.title")}</h1>
         <div className="row">
           <Link to="/requests/new?type=vacation" className="btn-primary">
-            + {t("type.vacation")}
+            <Icon src={icons.add} size={18} />
+            {t("type.vacation")}
           </Link>
           <Link to="/requests/new?type=advance" className="btn-secondary">
-            + {t("type.advance")}
+            <Icon src={icons.add} size={18} />
+            {t("type.advance")}
           </Link>
         </div>
       </div>

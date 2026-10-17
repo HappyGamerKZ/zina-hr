@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 
 import { api } from "../api/client";
 import type { PublicVacancy } from "../api/types";
+import Icon from "./Icon";
+import { icons } from "./icons";
 
 function firstError(data: unknown): string | null {
   if (!data || typeof data !== "object") return null;
@@ -57,7 +59,10 @@ export default function ResumeForm() {
   if (sent)
     return (
       <div className="stack">
-        <h1>✅ {t("careers.sent_title")}</h1>
+        <h1 className="icon-title">
+          <Icon src={icons.done} size={28} />
+          {t("careers.sent_title")}
+        </h1>
         <p className="muted">{t("careers.sent_text")}</p>
         <button type="button" className="btn-ghost" onClick={() => setSent(false)}>
           {t("careers.again")}

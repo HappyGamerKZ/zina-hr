@@ -21,6 +21,8 @@ import { useTranslation } from "react-i18next";
 
 import { api } from "../api/client";
 import type { Answer, AttemptResult, LessonDetail, QuizQuestion } from "../api/types";
+import Icon from "./Icon";
+import { icons } from "./icons";
 
 type Quiz = NonNullable<LessonDetail["quiz"]>;
 type Answers = Record<string, Answer>;
@@ -104,7 +106,7 @@ function SortableRow(props: { id: number; index: number; total: number; text: st
       <span className="ordering-text">{text}</span>
       <span className="ordering-buttons">
         <button type="button" className="btn-ghost" onClick={() => move(index, index - 1)} disabled={index === 0} aria-label="up">
-          ↑
+          <Icon src={icons.up} size={16} />
         </button>
         <button
           type="button"
@@ -113,7 +115,7 @@ function SortableRow(props: { id: number; index: number; total: number; text: st
           disabled={index === total - 1}
           aria-label="down"
         >
-          ↓
+          <Icon src={icons.down} size={16} />
         </button>
       </span>
     </li>

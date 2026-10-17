@@ -1,22 +1,25 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { api, ApiError } from "../api/client";
 import type { CandidateAction, CandidateDetail, CandidateInterview, StepState } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import BackLink from "../components/BackLink";
+import Icon from "../components/Icon";
+import { icons } from "../components/icons";
 import { StageBadge, salary, useVacancyTitle } from "../components/recruitment";
 import { fmtDate, fmtDateTime } from "../i18n";
 
-// Шаги: серый — ещё не пройден, синий — текущий, ✓ — пройден, ✕ — отказ
+// Шаги: часы — ещё не пройден, собеседование — текущий, галочка — пройден, крестик — отказ
 const STEP_ICON: Record<StepState, string> = {
-  done: "✅",
-  current: "🔵",
-  pending: "⚪",
-  skipped: "⚪",
-  rejected: "❌",
-  hired: "🎉",
+  done: icons.done,
+  current: icons.interview,
+  pending: icons.pending,
+  skipped: icons.more,
+  rejected: icons.close,
+  hired: icons.hired,
 };
 
 const ACTION_STYLE: Partial<Record<CandidateAction, string>> = {
@@ -102,7 +105,8 @@ function ScheduleForm({ c }: { c: CandidateDetail }) {
       {schedule.error && <p className="error">{schedule.error.message}</p>}
       <div>
         <button className="btn-primary" disabled={!when || schedule.isPending} onClick={() => schedule.mutate()}>
-          📅 {t("recruitment.schedule")}
+          <Icon src={icons.calendar} size={18} />
+          {t("recruitment.schedule")}
         </button>
       </div>
     </section>
@@ -177,9 +181,7 @@ export default function CandidatePage() {
 
   return (
     <div className="stack narrow">
-      <Link to="/recruitment" className="muted">
-        ← {t("recruitment.title")}
-      </Link>
+      <BackLink to="/recruitment">{t("recruitment.title")}</BackLink>
 
       <section className="card stack">
         <div className="section-head">
@@ -196,7 +198,7 @@ export default function CandidatePage() {
         <ol className="steps">
           {c.steps.map((s) => (
             <li key={s.key} className={`step step-${s.state}`}>
-              <span aria-hidden>{STEP_ICON[s.state]}</span>
+              <Icon src={STEP_ICON[s.state]} size={18} />
               <span>{s.key === "decision" ? t("recruitment.actions") : t(`recruitment.stage.${s.key}`)}</span>
             </li>
           ))}
@@ -251,8 +253,9 @@ export default function CandidatePage() {
         <div className="section-head">
           <h2>{t("recruitment.resume")}</h2>
           {c.resume_url && (
-            <a href={c.resume_url} target="_blank" rel="noreferrer">
+            <a href={c.resume_url} target="_blank" rel="noreferrer" className="icon-link">
               {t("recruitment.open_pdf")}
+              <Icon src={icons.externalLink} size={16} />
             </a>
           )}
         </div>

@@ -313,6 +313,13 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--primary); o
   mask: var(--icon) center / 200% 200% no-repeat;
 }
 .nav-icon { display: grid; place-items: center; }
+.back-link, .icon-link, .icon-title, .readonly-note { display: inline-flex; align-items: center; gap: 6px; }
+.alert { align-items: center; }
+.block-note { display: flex; align-items: flex-start; gap: 8px; }
+.block-note-icon { margin-top: 2px; color: var(--primary); }
+.lesson-icon { display: inline-flex; color: var(--primary); }
+.empty-state { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 0; text-align: center; }
+.empty-state p { margin: 0; }
 
 /* --- подбор персонала (временно, до дизайна) --- */
 .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }

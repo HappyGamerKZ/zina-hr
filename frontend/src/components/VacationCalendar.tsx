@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { BusyVacation } from "../api/types";
+import Icon from "./Icon";
+import { icons } from "./icons";
 
 // Временный календарь для тестирования backend; фронтенд переоформит его под дизайн.
 // Даты — строки "YYYY-MM-DD" в локальном времени, их можно сравнивать как строки.
@@ -65,12 +67,12 @@ export default function VacationCalendar({ busy, from, to, minDate, onChange }: 
   return (
     <div className="calendar">
       <div className="calendar-head">
-        <button type="button" className="btn-ghost" onClick={() => shift(-1)} disabled={!canGoBack} aria-label="‹">
-          ‹
+        <button type="button" className="btn-ghost" onClick={() => shift(-1)} disabled={!canGoBack} aria-label={t("academy.prev")}>
+          <Icon src={icons.back} size={18} />
         </button>
         <strong>{first.toLocaleDateString(locale, { month: "long", year: "numeric" })}</strong>
-        <button type="button" className="btn-ghost" onClick={() => shift(1)} aria-label="›">
-          ›
+        <button type="button" className="btn-ghost" onClick={() => shift(1)} aria-label={t("academy.next")}>
+          <Icon src={icons.forward} size={18} />
         </button>
       </div>
       <div className="calendar-grid">

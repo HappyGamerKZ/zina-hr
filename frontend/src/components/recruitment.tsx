@@ -6,6 +6,9 @@ import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
 import type { CandidateStage, RecruitmentSummary, UpcomingInterview, VacancyShort } from "../api/types";
 import { fmtDateTime, fmtMoney } from "../i18n";
+import Icon from "./Icon";
+import { EmptyState } from "./Illustration";
+import { icons } from "./icons";
 
 const TONE: Record<CandidateStage, string> = {
   screening: "warn",
@@ -39,7 +42,7 @@ export function useRecruitmentSummary() {
 export function UpcomingInterviews({ items }: { items: UpcomingInterview[] }) {
   const { t } = useTranslation();
   const title = useVacancyTitle();
-  if (items.length === 0) return <p className="muted">{t("recruitment.no_upcoming")}</p>;
+  if (items.length === 0) return <EmptyState name="calendar-check" text={t("recruitment.no_upcoming")} />;
   return (
     <ul className="request-list">
       {items.map((i) => (
@@ -70,12 +73,15 @@ export function RecruitmentWidget() {
     <section className="card">
       <div className="section-head">
         <h2>{t("recruitment.upcoming")}</h2>
-        <Link to="/recruitment">{t("recruitment.all_resumes")}</Link>
+        <Link to="/recruitment" className="icon-link">
+          {t("recruitment.all_resumes")}
+          <Icon src={icons.forward} size={16} />
+        </Link>
       </div>
       {data.new_resumes !== undefined && data.new_resumes > 0 && (
         <Link to="/recruitment?stage=screening" className="card alert">
           {t("recruitment.new_resumes", { count: data.new_resumes })}
-          <span>→</span>
+          <Icon src={icons.forward} />
         </Link>
       )}
       <UpcomingInterviews items={data.upcoming_interviews.slice(0, 5)} />

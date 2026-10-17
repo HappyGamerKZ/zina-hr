@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { api } from "../api/client";
 import type { Notification } from "../api/types";
+import { EmptyState } from "../components/Illustration";
 import { fmtDateTime } from "../i18n";
 
 export default function NotificationsPage() {
@@ -32,7 +33,7 @@ export default function NotificationsPage() {
       </div>
       <section className="card">
         {isLoading && <p className="muted">{t("common.loading")}</p>}
-        {data?.length === 0 && <p className="muted">{t("notifications.empty")}</p>}
+        {data?.length === 0 && <EmptyState name="leaf" text={t("notifications.empty")} />}
         <ul className="note-list">
           {data?.map((n) => (
             <li key={n.id} className={n.is_read ? "" : "unread"}>

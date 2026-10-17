@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
 import type { CandidateListItem, CandidateStage, VacancyWithCounts } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { EmptyState } from "../components/Illustration";
 import {
   StageBadge,
   UpcomingInterviews,
@@ -100,7 +101,7 @@ export default function RecruitmentPage() {
           </div>
         )}
         {candidates.isLoading && <p className="muted">{t("common.loading")}</p>}
-        {candidates.data?.length === 0 && <p className="muted">{t("recruitment.empty")}</p>}
+        {candidates.data?.length === 0 && <EmptyState name="team" text={t("recruitment.empty")} />}
         <ul className="request-list">
           {candidates.data?.map((c) => (
             <li key={c.id}>

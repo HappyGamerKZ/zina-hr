@@ -7,6 +7,7 @@
 export type Theme = "light" | "dark";
 
 const STORAGE_KEY = "theme";
+export const THEME_EVENT = "janamen:theme";
 
 type Tokens = Record<string, string>;
 let cache: { light: Tokens; dark: Tokens } | null = null;
@@ -63,6 +64,7 @@ export function applyTheme(theme: Theme) {
   const tokens = theme === "dark" ? { ...light, ...dark } : light;
   for (const [name, value] of Object.entries(tokens)) root.style.setProperty(name, value);
   root.style.colorScheme = theme; // системные элементы (скроллбары, поля дат) тоже в теме
+  window.dispatchEvent(new CustomEvent(THEME_EVENT, { detail: theme })); // для цветных иллюстраций
 }
 
 export function setTheme(theme: Theme) {

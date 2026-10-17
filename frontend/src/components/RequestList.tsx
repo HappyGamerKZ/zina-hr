@@ -4,6 +4,7 @@ import type { TFunction } from "i18next";
 
 import type { HrRequest } from "../api/types";
 import { fmtDate, fmtMoney } from "../i18n";
+import { EmptyState } from "./Illustration";
 import StatusBadge from "./StatusBadge";
 
 export function requestSummary(r: HrRequest, t: TFunction): string {
@@ -26,7 +27,7 @@ export default function RequestList({
   empty: string;
 }) {
   const { t } = useTranslation();
-  if (items.length === 0) return <p className="muted">{empty}</p>;
+  if (items.length === 0) return <EmptyState name="folder" text={empty} />;
   return (
     <ul className="request-list">
       {items.map((r) => (

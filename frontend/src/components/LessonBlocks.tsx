@@ -2,6 +2,8 @@
 import { useTranslation } from "react-i18next";
 
 import type { LessonBlock } from "../api/types";
+import Icon from "./Icon";
+import { icons } from "./icons";
 
 function Block({ b }: { b: LessonBlock }) {
   const { t } = useTranslation();
@@ -9,7 +11,12 @@ function Block({ b }: { b: LessonBlock }) {
     case "heading":
       return <h2 className="block-heading">{b.text}</h2>;
     case "note":
-      return <p className="block-note">💡 {b.text}</p>;
+      return (
+        <p className="block-note">
+          <Icon src={icons.help} size={18} className="block-note-icon" />
+          {b.text}
+        </p>
+      );
     case "image":
       return (
         <figure className="block-media">
@@ -32,11 +39,11 @@ function Block({ b }: { b: LessonBlock }) {
       return (
         <a className="block-file" href={b.url} target="_blank" rel="noreferrer">
           <span className="block-file-icon" aria-hidden>
-            📎
+            <Icon src={icons.attach} size={22} />
           </span>
           <span>
             <strong>{b.text || b.file_name}</strong>
-            <span className="muted small"> · {t("academy.open_media")} ↗</span>
+            <span className="muted small"> · {t("academy.open_media")} <Icon src={icons.externalLink} size={14} /></span>
           </span>
         </a>
       );

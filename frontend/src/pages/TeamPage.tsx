@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { api } from "../api/client";
 import type { HrRequest, TeamMember } from "../api/types";
+import { EmptyState } from "../components/Illustration";
 import RequestList from "../components/RequestList";
 
 export default function TeamPage() {
@@ -19,7 +20,7 @@ export default function TeamPage() {
       <h1>{t("team.title")}</h1>
       <section className="card">
         {team.isLoading && <p className="muted">{t("common.loading")}</p>}
-        {team.data?.length === 0 && <p className="muted">{t("team.empty")}</p>}
+        {team.data?.length === 0 && <EmptyState name="team" text={t("team.empty")} />}
         <div className="table-wrap">
           <table className="table">
             <thead>

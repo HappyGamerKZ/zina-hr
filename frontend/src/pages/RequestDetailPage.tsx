@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { api, ApiError } from "../api/client";
 import type { HrRequestDetail, RequestAction } from "../api/types";
+import BackLink from "../components/BackLink";
 import StatusBadge from "../components/StatusBadge";
 import { fmtDate, fmtDateTime, fmtMoney } from "../i18n";
 
@@ -55,9 +56,7 @@ export default function RequestDetailPage() {
 
   return (
     <div className="stack narrow">
-      <Link to="/requests" className="muted">
-        ← {t("common.back")}
-      </Link>
+      <BackLink to="/requests">{t("common.back")}</BackLink>
       <section className="card">
         <div className="section-head">
           <div>

@@ -5,6 +5,9 @@ import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
 import type { Assignment, CourseListItem } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { EmptyState } from "../components/Illustration";
+import Icon from "../components/Icon";
+import { icons } from "../components/icons";
 import { AssignmentRow, useCourseTitle } from "../components/academy";
 
 type Tab = "my" | "catalog" | "team";
@@ -49,7 +52,8 @@ export default function AcademyPage() {
         <h1>{t("academy.title")}</h1>
         {can("team.view") && (
           <Link to="/academy/assign" className="btn-primary">
-            + {t("academy.assign")}
+            <Icon src={icons.add} size={18} />
+            {t("academy.assign")}
           </Link>
         )}
       </div>
@@ -64,7 +68,7 @@ export default function AcademyPage() {
       {tab === "my" && (
         <section className="card">
           {my.isLoading && <p className="muted">{t("common.loading")}</p>}
-          {my.data?.length === 0 && <p className="muted">{t("academy.empty_my")}</p>}
+          {my.data?.length === 0 && <EmptyState name="certificate" text={t("academy.empty_my")} />}
           {my.data?.map((a) => <AssignmentRow key={a.id} a={a} />)}
         </section>
       )}
@@ -99,7 +103,7 @@ export default function AcademyPage() {
       {tab === "team" && (
         <section className="card">
           {team.isLoading && <p className="muted">{t("common.loading")}</p>}
-          {team.data?.length === 0 && <p className="muted">{t("academy.empty_team")}</p>}
+          {team.data?.length === 0 && <EmptyState name="growth" text={t("academy.empty_team")} />}
           {team.data?.map((a) => <AssignmentRow key={a.id} a={a} showEmployee />)}
         </section>
       )}

@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { api } from "../api/client";
 import type { Assignment, CourseListItem, TeamMember } from "../api/types";
+import BackLink from "../components/BackLink";
+import Icon from "../components/Icon";
+import { icons } from "../components/icons";
 import { useCourseTitle } from "../components/academy";
 
 export default function AssignCoursePage() {
@@ -62,9 +64,7 @@ export default function AssignCoursePage() {
 
   return (
     <div className="stack narrow">
-      <Link to="/academy?tab=team" className="muted">
-        ← {t("academy.tab_team")}
-      </Link>
+      <BackLink to="/academy?tab=team">{t("academy.tab_team")}</BackLink>
       <form className="card form" onSubmit={onSubmit}>
         <h1>{t("academy.assign_title")}</h1>
         <label>
@@ -99,7 +99,10 @@ export default function AssignCoursePage() {
           <input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
         </label>
         {assign.error && <p className="error">{assign.error.message}</p>}
-        {done !== null && <p className="hint">✓ {t("academy.assigned_ok", { count: done })}</p>}
+        {done !== null && <p className="hint icon-link">
+            <Icon src={icons.done} size={16} />
+            {t("academy.assigned_ok", { count: done })}
+          </p>}
         <div>
           <button className="btn-primary" disabled={assign.isPending || !courseId || selected.size === 0}>
             {t("academy.assign_submit")}

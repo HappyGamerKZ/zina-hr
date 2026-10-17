@@ -7,10 +7,18 @@ import type { Dashboard } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { AssignmentRow } from "../components/academy";
 import { RecruitmentWidget } from "../components/recruitment";
+import Icon from "../components/Icon";
+import { icons } from "../components/icons";
+import { EmptyState } from "../components/Illustration";
 import RequestList from "../components/RequestList";
 import { fmtDateTime } from "../i18n";
 
-const QUICK_ICONS: Record<string, string> = { vacation: "🏖", advance: "₸", ai: "✦", academy: "▶" };
+const QUICK_ICONS: Record<string, string> = {
+  vacation: icons.vacation,
+  advance: icons.advance,
+  ai: icons.ai,
+  academy: icons.academy,
+};
 
 export default function DashboardPage() {
   const { t } = useTranslation();
@@ -44,7 +52,10 @@ export default function DashboardPage() {
       {can("requests.approve") && data.approvals_count > 0 && (
         <Link to="/team/approvals" className="card alert">
           {t("dashboard.approvals", { count: data.approvals_count })}
-          <span>{t("dashboard.open_approvals")}</span>
+          <span className="icon-link">
+            {t("dashboard.open_approvals")}
+            <Icon src={icons.forward} size={16} />
+          </span>
         </Link>
       )}
 
@@ -54,7 +65,7 @@ export default function DashboardPage() {
           {data.quick_services.map((q) => (
             <Link key={q.key} to={q.link} className="card quick">
               <span className="quick-icon" aria-hidden>
-                {QUICK_ICONS[q.key]}
+                <Icon src={QUICK_ICONS[q.key]} size={24} />
               </span>
               {t(`dashboard.q_${q.key}`)}
             </Link>
@@ -66,7 +77,10 @@ export default function DashboardPage() {
         <section className="card">
           <div className="section-head">
             <h2>{t("dashboard.recent")}</h2>
-            <Link to="/requests">{t("dashboard.all_requests")}</Link>
+            <Link to="/requests" className="icon-link">
+              {t("dashboard.all_requests")}
+              <Icon src={icons.forward} size={16} />
+            </Link>
           </div>
           <RequestList items={data.recent_requests} empty={t("requests.empty")} />
         </section>
@@ -76,10 +90,12 @@ export default function DashboardPage() {
           <section className="card">
             <div className="section-head">
               <h2>{t("dashboard.learning")}</h2>
-              <Link to="/academy">→</Link>
+              <Link to="/academy" aria-label={t("nav.academy")}>
+                <Icon src={icons.forward} />
+              </Link>
             </div>
             {data.courses.length === 0 ? (
-              <p className="muted">{t("dashboard.no_courses")}</p>
+              <EmptyState name="certificate" text={t("dashboard.no_courses")} />
             ) : (
               data.courses.map((a) => <AssignmentRow key={a.id} a={a} />)
             )}
@@ -88,10 +104,12 @@ export default function DashboardPage() {
           <section className="card">
             <div className="section-head">
               <h2>{t("dashboard.notifications")}</h2>
-              <Link to="/notifications">→</Link>
+              <Link to="/notifications" aria-label={t("nav.notifications")}>
+                <Icon src={icons.forward} />
+              </Link>
             </div>
             {data.notifications.length === 0 ? (
-              <p className="muted">{t("dashboard.no_notifications")}</p>
+              <EmptyState name="clock" text={t("dashboard.no_notifications")} />
             ) : (
               <ul className="note-list">
                 {data.notifications.map((n) => (

@@ -6,10 +6,13 @@ import { useTranslation } from "react-i18next";
 import { api, ApiError } from "../api/client";
 import type { AssignmentDetail, LessonKind } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import BackLink from "../components/BackLink";
+import Icon from "../components/Icon";
+import { icons } from "../components/icons";
 import { AssignmentBadge, Progress, useCourseTitle } from "../components/academy";
 import { fmtDate } from "../i18n";
 
-const KIND_ICON: Record<LessonKind, string> = { text: "📄", quiz: "📝" };
+const KIND_ICON: Record<LessonKind, string> = { text: icons.documents, quiz: icons.help };
 
 export default function AssignmentPage() {
   const { id } = useParams();
@@ -32,9 +35,7 @@ export default function AssignmentPage() {
 
   return (
     <div className="stack narrow">
-      <Link to="/academy" className="muted">
-        ← {t("academy.title")}
-      </Link>
+      <BackLink to="/academy">{t("academy.title")}</BackLink>
       <section className="card">
         <div className="section-head">
           <div className="row">
@@ -59,7 +60,9 @@ export default function AssignmentPage() {
         </p>
         {own && next && (
           <Link to={`/academy/assignments/${a.id}/lessons/${next.id}`} className="btn-primary">
-            {a.status === "assigned" ? "▶" : t("academy.continue")}: {next.title}
+            {a.status !== "assigned" && `${t("academy.continue")}: `}
+            {next.title}
+            <Icon src={icons.forward} size={18} />
           </Link>
         )}
         {(a.can_restart || a.can_reassign) && <RestartPanel id={a.id} selfRestart={a.can_restart} />}
@@ -74,7 +77,7 @@ export default function AssignmentPage() {
               const body = (
                 <>
                   <span className="lesson-icon" aria-hidden>
-                    {l.status === "completed" ? "✅" : l.status === "locked" ? "🔒" : KIND_ICON[l.type]}
+                    <Icon src={l.status === "completed" ? icons.done : l.status === "locked" ? icons.readOnly : KIND_ICON[l.type]} />
                   </span>
                   <span className="lesson-title">
                     {l.title}
