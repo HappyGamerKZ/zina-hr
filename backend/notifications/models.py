@@ -8,6 +8,7 @@ class NotificationType(models.TextChoices):
     COURSE_ASSIGNED = "course_assigned", "Назначен курс"
     COURSE_COMPLETED = "course_completed", "Курс завершён"
     COURSE_FAILED = "course_failed", "Курс не сдан"
+    RECRUITMENT = "recruitment", "Подбор персонала"
     HR_TICKET_ANSWERED = "hr_ticket_answered", "HR ответил на вопрос"
 
 

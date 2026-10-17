@@ -8,6 +8,7 @@ import AcademyPage from "./pages/AcademyPage";
 import ApprovalsPage from "./pages/ApprovalsPage";
 import AssignCoursePage from "./pages/AssignCoursePage";
 import AssignmentPage from "./pages/AssignmentPage";
+import CandidatePage from "./pages/CandidatePage";
 import LessonPage from "./pages/LessonPage";
 import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
@@ -15,6 +16,7 @@ import NewRequestPage from "./pages/NewRequestPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import ProfilePage from "./pages/ProfilePage";
+import RecruitmentPage from "./pages/RecruitmentPage";
 import RequestDetailPage from "./pages/RequestDetailPage";
 import RequestsPage from "./pages/RequestsPage";
 import TeamMemberPage from "./pages/TeamMemberPage";
@@ -40,6 +42,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/careers" element={<LoginPage />} />
       <Route
         element={
           <RequireAuth>
@@ -86,6 +89,22 @@ export default function App() {
           element={
             <RequirePermission permission="team.view">
               <TeamMemberPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="recruitment"
+          element={
+            <RequirePermission permission="recruitment.interviews">
+              <RecruitmentPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="recruitment/:id"
+          element={
+            <RequirePermission permission="recruitment.interviews">
+              <CandidatePage />
             </RequirePermission>
           }
         />

@@ -14,6 +14,7 @@ from academy.grading import correct_answer, grade_quiz
 from academy.models import AssignmentStatus, Course, CourseAssignment, LessonProgress, LessonType, QuizAttempt
 from accounts.models import User
 from core.demo_courses import create_demo_courses
+from core.demo_recruitment import create_demo_recruitment
 from core.demo_users import DEMO_LOGINS, DEMO_PASSWORD, create_demo_users, ensure_migrated, wipe_demo_data
 from hr_requests.models import (
     AdvanceDetails,
@@ -182,6 +183,7 @@ class Command(BaseCommand):
              f"Заявка {adv.number}: утверждено / передано в 1С",
              "Аванс 80 000 ₸: приказ оформлен, передано в бухгалтерию", f"/requests/{adv.pk}", 7)
         onboarding, security = seed_academy(u, e, today)
+        create_demo_recruitment(u, e)
         note(u["employee"], NotificationType.COURSE_ASSIGNED, "Назначен курс «Адаптация в Jana Post»",
              "Назначил(а): Касымова Динара Маратовна.", f"/academy/assignments/{onboarding.pk}", 3, read=True)
         note(u["employee"], NotificationType.COURSE_ASSIGNED, "Назначен курс «Информационная безопасность»",

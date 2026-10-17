@@ -11,10 +11,11 @@ class Role(models.TextChoices):
 # Что пользователь видит в интерфейсе; сервер всё равно проверяет каждый запрос.
 ROLE_PERMISSIONS = {
     Role.EMPLOYEE: ["requests.create", "academy.learn", "ai.ask"],
-    Role.MANAGER: ["requests.create", "academy.learn", "ai.ask", "team.view", "requests.approve"],
+    Role.MANAGER: ["requests.create", "academy.learn", "ai.ask", "team.view", "requests.approve",
+                   "recruitment.interviews"],
     Role.HR_ADMIN: [
         "requests.create", "academy.learn", "ai.ask", "team.view", "requests.approve",
-        "hr.all_requests",
+        "hr.all_requests", "recruitment.manage", "recruitment.interviews",
     ],
 }
 

@@ -6,6 +6,39 @@
 
 ---
 
+## Подбор персонала (рекрутинг)
+
+Только новые адреса, старые не менялись. Права: HR (`hr_admin`) — всё; руководитель — только кандидаты, у которых он интервьюер (только просмотр и отзыв); сотрудник — `403`. В `GET /me` → `permissions` появились `recruitment.manage` (HR) и `recruitment.interviews` (HR и руководители).
+
+### Публичные (без входа) — форма на странице входа
+
+| Метод | Адрес | Что делает |
+|---|---|---|
+| GET | `/careers/vacancies` | открытые вакансии: `id, title_ru, title_kk, department, description` |
+| POST | `/careers/applications` | отправить резюме, **multipart/form-data**: `vacancy_id*`, `full_name*`, `email*`, `phone*`, `social`, `profile_url`, `resume_pdf` (PDF до 10 МБ), `expected_salary`, `comment`, `consent*` (`true`), `website` (скрытое поле-ловушка, всегда пустое). Нужна ссылка `profile_url` **или** файл. Ответ `201 {"status":"ok"}`; не больше 5 отправок в час с IP → `429` |
+
+### Раздел «Подбор»
+
+| Метод | Адрес | Что делает |
+|---|---|---|
+| GET | `/recruitment/summary` | `{new_resumes, by_stage, upcoming_interviews[]}` — для дашборда; у руководителя только `upcoming_interviews` (свои) |
+| GET | `/recruitment/candidates?vacancy=&stage=&q=` | список: `id, full_name, vacancy, stage, reviewed, expected_salary, created_at, next_interview` |
+| GET | `/recruitment/candidates/{id}` | карточка: контакты, `resume_url`, `comment`, `steps[] {key, label, state}`, `allowed_actions[]`, `interviews[]`, `events[]` |
+| POST | `/recruitment/candidates/{id}/actions` | `{action: review \| next \| reject \| hire, comment}` — «Ознакомлен», «Следующий этап», «Отклонить», «Нанять» |
+| POST | `/recruitment/candidates/{id}/interviews` | назначить / перенести интервью текущего этапа: `{scheduled_at (ISO), duration_min, interviewer_id?, location}` |
+| GET | `/recruitment/candidates/{id}/resume` | PDF (только HR и интервьюер кандидата; можно показывать в `<iframe>` на сайте) |
+| GET | `/recruitment/vacancies` | вакансии с `candidates_count` — для фильтра (HR) |
+| GET | `/recruitment/interviewers` | кого можно назначить интервьюером: `id, full_name, role` (HR) |
+| POST | `/recruitment/interviews/{id}/feedback` | `{feedback}` — отзыв интервьюера, интервью становится `done` |
+
+- **Этапы** (`stage`): `screening` → `hr_interview` → `tech_interview` → `hired` / `rejected`. `decision_stage` — на каком этапе принят найм или отказ.
+- **Шаги** (`steps[].state`): `done` (галочка), `current`, `pending` (серый), `rejected`, `skipped`; последний шаг `decision` — `hired` / `rejected` / `pending`. Скрининг получает `done` после «Ознакомлен», отказа или перехода на интервью.
+- **Кнопки** рисуйте по `allowed_actions`: `review`, `next`, `reject`, `hire`, `schedule` (показать форму интервью). У руководителя список пустой — решения принимает HR.
+- **PDF не лежит в `/media`**: его отдаёт только `resume_url` после проверки прав.
+- **Новый тип уведомления** `recruitment`: «Новое резюме…» (HR), «Техническое интервью: …» (интервьюеру), «Принят кандидат…» (руководителю вакансии). Ссылка — `/recruitment/{id}`.
+
+---
+
 ## Live-уведомления (SSE)
 
 Добавление, старые адреса не изменились.

@@ -229,3 +229,71 @@ export interface TeamMember {
   vacation_days_available: number;
   active_requests: number;
 }
+
+// --- Подбор персонала ---
+
+export type CandidateStage = "screening" | "hr_interview" | "tech_interview" | "hired" | "rejected";
+export type CandidateAction = "review" | "next" | "reject" | "hire" | "schedule";
+export type StepState = "done" | "current" | "pending" | "rejected" | "skipped" | "hired";
+
+export interface VacancyShort {
+  id: number;
+  title_ru: string;
+  title_kk: string;
+}
+
+export interface PublicVacancy extends VacancyShort {
+  department: string;
+  description: string;
+}
+
+export interface VacancyWithCounts extends VacancyShort {
+  is_open: boolean;
+  candidates_count: number;
+}
+
+export interface CandidateInterview {
+  id: number;
+  kind: "hr" | "tech";
+  scheduled_at: string;
+  duration_min: number;
+  interviewer: { id: number; full_name: string } | null;
+  location: string;
+  status: "scheduled" | "done" | "cancelled";
+  feedback: string;
+}
+
+export interface CandidateListItem {
+  id: number;
+  full_name: string;
+  vacancy: VacancyShort;
+  stage: CandidateStage;
+  reviewed: boolean;
+  expected_salary: number | null;
+  created_at: string;
+  next_interview: { kind: "hr" | "tech"; scheduled_at: string } | null;
+}
+
+export interface CandidateDetail extends CandidateListItem {
+  email: string;
+  phone: string;
+  social: string;
+  profile_url: string;
+  resume_url: string | null; // /api/v1/recruitment/candidates/{id}/resume — только для HR и интервьюера
+  comment: string;
+  decision_stage: CandidateStage | "";
+  steps: { key: CandidateStage | "decision"; label: string; state: StepState }[];
+  allowed_actions: CandidateAction[];
+  interviews: CandidateInterview[];
+  events: { id: number; action: string; stage: CandidateStage; actor_name: string | null; comment: string; created_at: string }[];
+}
+
+export interface UpcomingInterview extends CandidateInterview {
+  candidate: { id: number; full_name: string; vacancy: VacancyShort; stage: CandidateStage };
+}
+
+export interface RecruitmentSummary {
+  new_resumes?: number; // только HR
+  by_stage?: Record<CandidateStage, number>; // только HR
+  upcoming_interviews: UpcomingInterview[];
+}

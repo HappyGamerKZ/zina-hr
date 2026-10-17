@@ -6,6 +6,7 @@ import { api } from "../api/client";
 import type { Dashboard } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { AssignmentRow } from "../components/academy";
+import { RecruitmentWidget } from "../components/recruitment";
 import RequestList from "../components/RequestList";
 import { fmtDateTime } from "../i18n";
 
@@ -71,6 +72,7 @@ export default function DashboardPage() {
         </section>
 
         <div className="stack">
+          {can("recruitment.interviews") && <RecruitmentWidget />}
           <section className="card">
             <div className="section-head">
               <h2>{t("dashboard.learning")}</h2>

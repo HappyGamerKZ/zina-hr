@@ -55,6 +55,7 @@ export default function Layout() {
     { to: "/profile", label: t("nav.profile"), icon: "☺", mobile: true },
     { to: "/team", label: t("nav.team"), icon: "☷", permission: "team.view" },
     { to: "/team/approvals", label: t("nav.approvals"), icon: "✓", permission: "requests.approve" },
+    { to: "/recruitment", label: t("recruitment.nav"), icon: "◎", permission: "recruitment.interviews" },
   ];
   const visible = items.filter((i) => !i.permission || can(i.permission));
 

@@ -79,7 +79,7 @@ Django 5 + DRF, PostgreSQL 16 + pgvector, React + TypeScript + Vite, docker comp
 
 ## Не делаем
 
-Рекрутинг, Performance Management, электронную подпись и хранение оригиналов, реальные интеграции с 1С:ЗУП и Documentolog, кадровые решения силами AI, мобильное приложение.
+Performance Management, электронную подпись и хранение оригиналов, реальные интеграции с 1С:ЗУП и Documentolog, кадровые решения силами AI, мобильное приложение. Рекрутинг сделан сверх требований как бонус (модуль `recruitment`, ARCHITECTURE.md §12).
 
 ## Что сдаём
 

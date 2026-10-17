@@ -539,4 +539,40 @@ ceo (Дирекция, manager = null; manager + Django Admin)
 | Уведомления (in-app, live через SSE, запасной опрос) | полностью; email/Telegram — будущее |
 | 1С:ЗУП | **mock** (контейнер + адаптер); боевой адаптер — будущее |
 | Documentolog | **mock** (контейнер + webhook); ЭЦП и хранение оригиналов — вне рамок |
-| Рекрутинг, Performance, мобильное приложение | вне рамок кейса |
+| Подбор персонала (бонус, §12) | полностью |
+| Performance, мобильное приложение | вне рамок кейса |
+
+---
+
+## 12. Подбор персонала (бонус, модуль `backend/recruitment`)
+
+Сверх требований кейса. Публичная форма резюме на странице входа → воронка кандидатов у HR → интервью с руководителем.
+
+```mermaid
+stateDiagram-v2
+    [*] --> screening: резюме с формы на странице входа
+    screening --> screening: «Ознакомлен» (галочка скрининга)
+    screening --> hr_interview: «Следующий этап»
+    hr_interview --> tech_interview: «Следующий этап»
+    screening --> hired: «Нанять»
+    hr_interview --> hired: «Нанять»
+    tech_interview --> hired: «Нанять»
+    screening --> rejected: «Отклонить»
+    hr_interview --> rejected: «Отклонить»
+    tech_interview --> rejected: «Отклонить»
+    hired --> [*]
+    rejected --> [*]
+```
+
+| Таблица | Ключевые поля |
+|---|---|
+| `Vacancy` | `title_ru/kk`, `department`, `hiring_manager` (интервьюер техинтервью по умолчанию), `is_open` — ведётся в Django Admin |
+| `Candidate` | `vacancy`, `full_name`, `email`, `phone`, `social`, `profile_url`, `resume_pdf` (закрытое хранилище), `expected_salary`, `comment`, `consent_at`, `stage`, `reviewed_at`, `decision_stage` |
+| `Interview` | `candidate`, `kind` (`hr`/`tech`), `scheduled_at`, `duration_min`, `interviewer`, `location`, `status`, `feedback` |
+| `CandidateEvent` | история: `action`, `stage`, `actor`, `comment` |
+
+- **Доступ:** HR — все кандидаты и все действия; руководитель — только кандидаты, у которых он интервьюер (просмотр, PDF, отзыв); сотрудник — 403. Проверка на сервере (`recruitment/services.py: visible_candidates`).
+- **Резюме — персональные данные:** PDF хранятся в отдельном томе `private` (`/private`), к которому у nginx нет доступа, и отдаются только `GET /recruitment/candidates/{id}/resume` после проверки прав (`Cache-Control: no-store`). Файлы уроков Academy при этом остаются в публичном `/media`.
+- **Публичная форма:** согласие на обработку ПДн (время сохраняется), только PDF до 10 МБ с проверкой сигнатуры `%PDF-`, ограничение 5 отправок в час с IP (`ScopedRateThrottle`), скрытое поле-ловушка для ботов.
+- **Уведомления (тип `recruitment`):** новое резюме → всем HR; назначено интервью → интервьюеру; кандидат принят → руководителю вакансии. Приходят live-потоком (§9.2).
+- **Будущее:** письма кандидатам о приглашении и отказе, приглашение в календарь (.ics), передача принятого в 1С:ЗУП как «Приём на работу».

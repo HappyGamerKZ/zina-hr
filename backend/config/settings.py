@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "notifications",
     "integrations",
     "academy",
+    "recruitment",
 ]
 
 MIDDLEWARE = [
@@ -105,8 +106,11 @@ STATIC_ROOT = os.environ.get("DJANGO_STATIC_ROOT", str(BASE_DIR / "staticfiles")
 # Загруженные файлы (фото, видео, PDF в уроках Academy). В docker compose — общий том с nginx.
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.environ.get("DJANGO_MEDIA_ROOT", str(BASE_DIR / "media"))
+# Закрытые файлы (резюме кандидатов): без публичного URL, отдаются только через API после проверки прав.
+PRIVATE_MEDIA_ROOT = os.environ.get("DJANGO_PRIVATE_MEDIA_ROOT", str(BASE_DIR / "private"))
 if len(sys.argv) > 1 and sys.argv[1] == "test":
     MEDIA_ROOT = tempfile.mkdtemp(prefix="janamen-test-media-")  # тесты не мусорят в общем томе
+    PRIVATE_MEDIA_ROOT = tempfile.mkdtemp(prefix="janamen-test-private-")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -122,6 +126,8 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": None,
+    # Публичная форма резюме: не больше 5 отправок в час с одного IP (в каждом процессе backend)
+    "DEFAULT_THROTTLE_RATES": {"careers": "5/hour"},
 }
 
 SPECTACULAR_SETTINGS = {
@@ -182,6 +188,10 @@ UNFOLD = {
                 _admin_link("Вопросы", "help", "academy.question"),
                 _admin_link("Назначения", "assignment_ind", "academy.courseassignment"),
                 _admin_link("Попытки тестов", "fact_check", "academy.quizattempt"),
+            ]},
+            {"title": "Подбор персонала", "items": [
+                _admin_link("Вакансии", "work_history", "recruitment.vacancy"),
+                _admin_link("Кандидаты", "person_search", "recruitment.candidate"),
             ]},
             {"title": "Заявки", "items": [
                 _admin_link("Заявки", "description", "hr_requests.hrrequest"),

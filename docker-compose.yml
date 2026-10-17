@@ -9,6 +9,7 @@ x-backend-env: &backend-env
   DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,backend
   DJANGO_CSRF_TRUSTED_ORIGINS: http://localhost:8080,http://localhost:5173
   DJANGO_MEDIA_ROOT: /media
+  DJANGO_PRIVATE_MEDIA_ROOT: /private
   # Интеграции: заглушки в этом же compose. Для боевых систем меняются только URL и ключи.
   HRIS_PROVIDER: ${HRIS_PROVIDER:-zup_http}
   ZUP_BASE_URL: ${ZUP_BASE_URL:-http://mock-zup:8001}
@@ -43,6 +44,8 @@ services:
       - ./backend:/app
       # Файлы уроков Academy (фото, видео, PDF)
       - media:/media
+      # Резюме кандидатов — закрытый том, nginx к нему доступа не имеет
+      - private:/private
     ports:
       - "8000:8000"
     depends_on:
@@ -61,6 +64,7 @@ services:
     volumes:
       - ./backend:/app
       - media:/media
+      - private:/private
     depends_on:
       - backend
 
@@ -95,3 +99,4 @@ services:
 volumes:
   pgdata:
   media:
+  private:
