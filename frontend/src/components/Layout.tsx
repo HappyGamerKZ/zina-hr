@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { api } from "../api/client";
+import { useLiveNotifications } from "../api/live";
 import type { Lang } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { setLang } from "../i18n";
@@ -22,14 +23,15 @@ export default function Layout() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
 
-  // Polling уведомлений раз в 10 с. Пришло новое уведомление (изменился latest_id) —
-  // обновляем заявки, главную и список уведомлений без перезагрузки страницы.
-  // Позже заменяется на SSE: сервер сам пришлёт событие (см. ARCHITECTURE.md §9.2).
+  // Уведомления: live-поток (SSE) присылает событие сразу → перечитываем счётчик.
+  // Пришло новое уведомление (изменился latest_id) — обновляем заявки, главную и список
+  // уведомлений без перезагрузки страницы. Пока поток не подключён — опрос раз в 10 с.
   const qc = useQueryClient();
+  const live = useLiveNotifications(() => qc.invalidateQueries({ queryKey: ["notifications"] }));
   const unread = useQuery({
     queryKey: ["notifications", "unread"],
     queryFn: () => api<{ count: number; latest_id: number | null }>("/notifications/unread-count"),
-    refetchInterval: 10_000,
+    refetchInterval: live ? 60_000 : 10_000,
     refetchIntervalInBackground: true,
   });
   const latestId = unread.data?.latest_id;

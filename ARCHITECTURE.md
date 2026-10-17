@@ -19,7 +19,7 @@
 | БД | PostgreSQL 16 + расширение `pgvector` (`pgvector.django.VectorField`) | одна БД и для данных, и для векторного поиска |
 | AI | LLM через абстракцию `LLMProvider` (Claude API; ключ в `.env`) + локальные эмбеддинги `multilingual-e5-small` | RU/KZ, работает без внешнего сервиса эмбеддингов |
 | Фоновые задачи | контейнер `worker`: management-команда `run_worker` (outbox, синхронизация с mock 1С) | без Celery и брокера |
-| Уведомления | polling `GET /notifications/unread-count` раз в 10 с: при новом `latest_id` фронт обновляет заявки и уведомления (позже SSE через ASGI) | просто и надёжно для демо |
+| Уведомления | live-поток `GET /notifications/stream` (Server-Sent Events) на ASGI (uvicorn) + PostgreSQL LISTEN/NOTIFY; запасной опрос `unread-count` (10 с без потока, 60 с с потоком) | события приходят за доли секунды, без WebSocket и брокера |
 | Внешние системы | контейнеры `mock-1c-zup` и `mock-documentolog` (маленькие HTTP-сервисы) | реальная HTTP-граница, заменяется на боевые API |
 | Инфраструктура | Docker Compose, Nginx (раздаёт фронт + проксирует `/api`) | одна команда запуска |
 
@@ -266,7 +266,8 @@ stateDiagram-v2
 | POST | `/academy/assignments` | manager (своим) / HR | `{course_id, employee_ids, due_date}` → назначить + уведомление |
 | POST | `/ai/ask` | все | вопрос AI Jana → `{answer, status, citations[], suggested_action}` |
 | POST | `/ai/escalate` | все | передать вопрос в HR → `hr_tickets` |
-| GET | `/notifications`, `/notifications/unread-count` | все | центр уведомлений; `unread-count` → `{count, latest_id}` для polling |
+| GET | `/notifications`, `/notifications/unread-count` | все | центр уведомлений; `unread-count` → `{count, latest_id}` для запасного опроса |
+| GET | `/notifications/stream` | все (только свои) | SSE-поток: `ready {unread}`, `notification {…, unread}`, ping каждые 20 с |
 | GET | `/requests/vacation-calendar` | все (только свои) | занятые дни отпуска (на согласовании и утверждённые) для календаря |
 | POST | `/notifications/{id}/read`, `/notifications/read-all` | все | прочитано |
 | — | `/admin/` (Django Admin, вне `/api/v1`) | hr_admin | курсы, уроки, тесты, статьи БЗ, сотрудники, лог интеграций |
@@ -451,8 +452,8 @@ sequenceDiagram
 - **Один origin** (nginx проксирует `/api` и `/admin`) → нет CORS, cookie работают просто.
 - **Типизированный клиент**: drf-spectacular отдаёт `/api/schema/`; `npm run gen:api` генерирует `src/api/schema.d.ts`; запросы через TanStack Query.
 - **CSRF**: фронт читает cookie `csrftoken` и шлёт его в `X-CSRFToken` во всех POST/PATCH/DELETE.
-- **Кэш и обновление**: после `PATCH /requests/{id}/approve-manager` (и других действий) фронт инвалидирует `['requests']`, `['dashboard']`; у получателя обновление приходит через polling уведомлений.
-- **Путь к live-уведомлениям (следующий этап):** backend переводится на ASGI (uvicorn), появляется `GET /notifications/stream` (Server-Sent Events). При создании `Notification` сервер делает `NOTIFY` в PostgreSQL, поток пользователя получает его через `LISTEN` и сразу отправляет событие в браузер; фронт подписывается через `EventSource` и инвалидирует кэш так же, как сейчас при polling. Polling остаётся запасным вариантом.
+- **Кэш и обновление**: после `PATCH /requests/{id}/approve-manager` (и других действий) фронт инвалидирует `['requests']`, `['dashboard']`; у получателя обновление приходит live-событием из потока уведомлений (или запасным опросом).
+- **Live-уведомления (реализовано, `notifications/live.py`, `stream.py`):** backend работает на ASGI (uvicorn), `GET /notifications/stream` (Server-Sent Events). При создании `Notification` сервер делает `NOTIFY` в PostgreSQL, поток пользователя получает его через `LISTEN` и сразу отправляет событие в браузер; фронт подписывается через `EventSource` (`src/api/live.ts`) и инвалидирует кэш. На процесс — одно LISTEN-соединение (Hub), события раздаются по пользователям; NOTIFY уходит только после коммита. Опрос остаётся запасным вариантом.
 - **Права на фронте** — `GET /me` возвращает `role` и `permissions[]`; меню и route guards строятся из них. При `401/403` от `/me` → `/login`.
 - **Локализация**: язык из `users.locale`, переключатель RU/KZ в шапке; контент из БД отдаётся с `name_ru`/`name_kk`, backend выбирает по заголовку `Accept-Language`.
 - **Адаптивность**: mobile-first, на телефоне нижняя навигация (Главная / Заявки / Обучение / AI / Ещё).
@@ -466,7 +467,7 @@ sequenceDiagram
 services:
   db:                 { image: pgvector/pgvector:pg16, volumes: [pgdata:/var/lib/postgresql/data] }
   backend:            { build: ./backend, depends_on: [db], env_file: .env,
-                        command: "migrate && seed && gunicorn config.wsgi" }
+                        command: "migrate && seed && sync_zup && uvicorn config.asgi --workers 3" }
   worker:             { build: ./backend, command: "python manage.py run_worker" }
   frontend:           { build: ./frontend }          # multi-stage: vite build → nginx
   mock-1c-zup:        { build: ./mocks/zup }          # тестовые сотрудники и остатки
@@ -535,7 +536,7 @@ ceo (Дирекция, manager = null; manager + Django Admin)
 | Профиль, заявки (отпуск + аванс), история, согласование | полностью |
 | Jana Academy: каталог, назначение, уроки, тест, прогресс | полностью |
 | AI Jana: RAG по БЗ, источники, отказ, эскалация | полностью (LLM — внешний API или extractive-режим) |
-| Уведомления (in-app, polling) | полностью; SSE, email/Telegram — будущее |
+| Уведомления (in-app, live через SSE, запасной опрос) | полностью; email/Telegram — будущее |
 | 1С:ЗУП | **mock** (контейнер + адаптер); боевой адаптер — будущее |
 | Documentolog | **mock** (контейнер + webhook); ЭЦП и хранение оригиналов — вне рамок |
 | Рекрутинг, Performance, мобильное приложение | вне рамок кейса |

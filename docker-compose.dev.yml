@@ -1,7 +1,7 @@
 # Режим разработки: правки видны сразу, без пересборки образов.
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 # Фронтенд: http://localhost:5173 (Vite, горячая перезагрузка), API и /admin проксируются на backend.
-# Backend: Django runserver — перезапускается сам при изменении .py файлов.
+# Backend: uvicorn --reload (ASGI, нужен для live-уведомлений) — перезапускается сам при изменении .py файлов.
 
 services:
   backend:

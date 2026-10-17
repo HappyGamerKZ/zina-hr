@@ -94,7 +94,7 @@ docker compose up --build -d
 ### Без Docker
 
 ```bash
-cd backend && pip install -r requirements.txt && python manage.py migrate && python manage.py seed && python manage.py runserver
+cd backend && pip install -r requirements.txt && python manage.py migrate && python manage.py seed && uvicorn config.asgi:application --reload
 ```
 
 ```bash
@@ -146,7 +146,7 @@ docker compose exec backend python manage.py seed_users
 | Профиль из «1С:ЗУП» (read-only), остаток отпуска с учётом заявок | ✅ полностью; данные — seed вместо mock-сервиса ЗУП |
 | Заявки «Отпуск» и «Аванс»: адаптивный маршрут (руководитель → HR → 1С, с учётом `manager_id` и роли автора), отклонение, отмена, история | ✅ полностью, покрыто тестами (`python manage.py test hr_requests`) |
 | Мои заявки, заявки команды, очередь согласования | ✅ полностью |
-| Уведомления: новая заявка, смена статуса (polling 10 с, списки обновляются сами) | ✅ полностью; SSE, email — будущее |
+| Уведомления: новая заявка, смена статуса, курсы, приказы; live-поток (SSE) — колокольчик и списки обновляются сразу, без F5 | ✅ полностью, покрыто тестами (`python manage.py test notifications`); email — будущее |
 | Отпуск: запрет пересечения с другими отпусками сотрудника, календарь занятых дней (`GET /requests/vacation-calendar`) | ✅ полностью, покрыто тестами |
 | RU / KZ | ✅ интерфейс; контент из БД — частично (`name_kk`) |
 | Django Admin для HR | ✅ |

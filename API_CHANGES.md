@@ -6,6 +6,46 @@
 
 ---
 
+## Live-уведомления (SSE)
+
+Добавление, старые адреса не изменились.
+
+### Новый адрес: `GET /notifications/stream`
+
+Поток Server-Sent Events. Пользователь — из сессии (cookie), каждый получает только свои уведомления; без входа — `403`.
+
+```
+retry: 5000
+
+event: ready
+data: {"unread": 3}
+
+event: notification
+data: {"id": 201, "type": "request_status_changed", "title": "…", "body": "…", "link": "/requests/101",
+       "is_read": false, "created_at": "2026-10-17T17:59:44+05:00", "unread": 4}
+
+: ping
+```
+
+- `ready` — сразу после подключения, `unread` = число непрочитанных.
+- `notification` — новое уведомление: те же поля, что в `GET /notifications`, плюс `unread`.
+- `: ping` — комментарий каждые 20 с, чтобы соединение не закрылось; обрабатывать не нужно.
+- Обрыв связи браузер переподключает сам через 5 с (`retry`).
+
+Подписка в браузере (уже сделана в `src/api/live.ts`, используется в `Layout.tsx`):
+
+```ts
+const source = new EventSource("/api/v1/notifications/stream");
+source.addEventListener("notification", (e) => { /* JSON.parse(e.data) */ });
+```
+
+### Что поменялось во фронтенде
+
+- `src/api/live.ts` — хук `useLiveNotifications(onNotification)`, возвращает `true`, пока поток подключён.
+- `Layout.tsx` — на событие перечитывается счётчик уведомлений (а следом заявки, главная и список уведомлений, как раньше). Опрос `unread-count` остался запасным: раз в 60 с, пока поток работает, и раз в 10 с, если потока нет.
+
+---
+
 ## Этап 4. Интеграции 1С:ЗУП и Documentolog
 
 Все изменения — добавления, текущий фронтенд работает без правок.
