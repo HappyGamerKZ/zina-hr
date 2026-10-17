@@ -8,6 +8,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    // В docker-compose.dev.yml: изменения файлов с Windows доходят до контейнера только опросом
+    watch: process.env.VITE_USE_POLLING ? { usePolling: true, interval: 300 } : undefined,
     proxy: {
       "/api": backend,
       "/admin": backend,

@@ -1,0 +1,33 @@
+# Режим разработки: правки видны сразу, без пересборки образов.
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# Фронтенд: http://localhost:5173 (Vite, горячая перезагрузка), API и /admin проксируются на backend.
+# Backend: Django runserver — перезапускается сам при изменении .py файлов.
+
+services:
+  backend:
+    environment:
+      DJANGO_DEV_SERVER: "1"
+
+  # nginx-сборка в разработке не нужна; включается только с профилем prod
+  frontend:
+    profiles: ["prod"]
+
+  frontend-dev:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install --no-audit --no-fund && npm run dev -- --host 0.0.0.0"
+    environment:
+      VITE_BACKEND_URL: http://backend:8000
+      # Windows-папка в контейнере не присылает события об изменениях — следим опросом
+      VITE_USE_POLLING: "1"
+    volumes:
+      - ./frontend:/app
+      # node_modules живут в томе контейнера, а не в папке проекта на Windows
+      - frontend_node_modules:/app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  frontend_node_modules:

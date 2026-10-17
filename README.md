@@ -27,10 +27,41 @@ docker compose up --build
 docker compose exec backend python manage.py seed --reset
 ```
 
-### Без Docker (для разработки)
+### Режим разработки (Docker, без пересборки)
+
+Правки фронтенда видны в браузере сразу (Vite, горячая перезагрузка), backend перезапускается сам при изменении `.py`:
 
 ```bash
-cd backend && pip install -r requirements.txt && python manage.py makemigrations org accounts hr_requests notifications integrations && python manage.py migrate && python manage.py seed && python manage.py runserver
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+```
+
+| Что | Адрес |
+|---|---|
+| Приложение (dev) | http://localhost:5173 |
+| API / Swagger / Admin | через тот же адрес: `/api/...`, `/api/docs/`, `/admin/` |
+
+Первый запуск ставит npm-пакеты внутри контейнера (1–2 минуты). Логи фронтенда:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml logs -f frontend-dev
+```
+
+Вернуться к обычному режиму (как у жюри, nginx на :8080):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+```
+
+```bash
+docker compose up --build -d
+```
+
+Пересборка (`--build`) нужна только в обычном режиме. Новые npm-пакеты в dev-режиме: перезапустите `frontend-dev`.
+
+### Без Docker
+
+```bash
+cd backend && pip install -r requirements.txt && python manage.py migrate && python manage.py seed && python manage.py runserver
 ```
 
 ```bash

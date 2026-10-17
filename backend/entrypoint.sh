@@ -7,4 +7,8 @@ python manage.py migrate --noinput
 python manage.py collectstatic --noinput >/dev/null
 python manage.py seed
 
+if [ "$DJANGO_DEV_SERVER" = "1" ]; then
+    # Режим разработки (docker-compose.dev.yml): перезапуск при изменении кода
+    exec python manage.py runserver 0.0.0.0:8000
+fi
 exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --access-logfile -
