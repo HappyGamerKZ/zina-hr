@@ -15,7 +15,7 @@ BLANK_RE = re.compile(r"\{\{(\d+)\}\}")
 class CourseShortSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
-        fields = ["id", "title_ru", "title_kk", "cover_emoji"]
+        fields = ["id", "title_ru", "title_kk", "cover_emoji", "cover_icon"]
 
 
 class CourseListSerializer(serializers.ModelSerializer):
@@ -25,7 +25,7 @@ class CourseListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
         fields = [
-            "id", "title_ru", "title_kk", "description_ru", "description_kk", "cover_emoji",
+            "id", "title_ru", "title_kk", "description_ru", "description_kk", "cover_emoji", "cover_icon",
             "duration_min", "lessons_count", "my_assignment",
         ]
 

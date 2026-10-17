@@ -9,7 +9,10 @@ import { useAuth } from "../auth/AuthContext";
 import BackLink from "../components/BackLink";
 import Icon from "../components/Icon";
 import { icons } from "../components/icons";
-import { StageBadge, salary, useVacancyTitle } from "../components/recruitment";
+import { Progress } from "../components/academy";
+import Avatar from "../components/Avatar";
+import Modal from "../components/Modal";
+import { MatchBadge, StageBadge, salary, useVacancyTitle } from "../components/recruitment";
 import { fmtDate, fmtDateTime } from "../i18n";
 
 // Шаги: часы — ещё не пройден, собеседование — текущий, галочка — пройден, крестик — отказ
@@ -150,6 +153,98 @@ function InterviewCard({ i, canFeedback }: { i: CandidateInterview; canFeedback:
   );
 }
 
+/** Ход собеседований: шаги с датами и общий прогресс. «Резюме получено» — всегда первый пройденный шаг. */
+function ProgressPanel({ c }: { c: CandidateDetail }) {
+  const { t } = useTranslation();
+  const rows = [
+    { key: "received", label: t("cand.received"), state: "done" as StepState, date: c.created_at as string | null },
+    ...c.steps.map((s) => ({
+      key: s.key,
+      label: s.key === "decision" ? t("recruitment.actions") : t(`recruitment.stage.${s.key}`),
+      state: s.state,
+      date: s.date,
+    })),
+  ];
+  const done = rows.filter((r) => r.state === "done" || r.state === "hired").length;
+  const pct = Math.round((done / rows.length) * 100);
+  const dateText = (r: (typeof rows)[number]) => {
+    if (r.state === "skipped") return "—";
+    if (!r.date) return r.key !== "decision" && (r.state === "pending" || r.state === "current") ? t("cand.not_scheduled") : "";
+    return r.state === "current" ? t("cand.planned", { date: fmtDateTime(r.date) }) : fmtDate(r.date);
+  };
+
+  return (
+    <section className="card progress-panel">
+      <div className="section-head">
+        <h2>{t("cand.progress")}</h2>
+        <span className="status status-info">{t("cand.stages_of", { done, total: rows.length })}</span>
+      </div>
+      <ol className="progress-steps">
+        {rows.map((r) => (
+          <li key={r.key} className={`progress-step progress-${r.state}`}>
+            <span className="progress-dot">
+              <Icon src={STEP_ICON[r.state]} size={18} />
+            </span>
+            <span className="progress-text">
+              <strong>{r.label}</strong>
+              <span className="muted small">{dateText(r)}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+      <div className="section-head">
+        <strong>{t("cand.overall")}</strong>
+        <strong>{pct}%</strong>
+      </div>
+      <Progress value={pct} />
+    </section>
+  );
+}
+
+/** Подтверждение найма: что произойдёт после нажатия. */
+function HireModal({ c, busy, onConfirm, onClose }: {
+  c: CandidateDetail;
+  busy: boolean;
+  onConfirm: (closeVacancy: boolean) => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const [closeVacancy, setCloseVacancy] = useState(false);
+  return (
+    <Modal onClose={onClose}>
+      <div className="hire-modal">
+        <span className="hire-icon">
+          <Icon src={icons.offer} size={36} />
+        </span>
+        <h2>{t("cand.hire_title", { name: c.full_name })}</h2>
+        <p className="muted">{t("cand.hire_text")}</p>
+        <ul className="hire-steps">
+          {[icons.done, icons.bell, icons.calendar, icons.documents].map((icon, idx) => (
+            <li key={idx}>
+              <Icon src={icon} size={20} />
+              {t(`cand.hire_${idx + 1}`)}
+            </li>
+          ))}
+        </ul>
+        {c.vacancy_status === "active" && (
+          <label className="check-row">
+            <input type="checkbox" checked={closeVacancy} onChange={(e) => setCloseVacancy(e.target.checked)} />
+            {t("cand.hire_close")}
+          </label>
+        )}
+        <div className="row-2">
+          <button className="btn-ghost" onClick={onClose}>
+            {t("cand.cancel")}
+          </button>
+          <button className="btn-primary" disabled={busy} onClick={() => onConfirm(closeVacancy)}>
+            {t("cand.hire_confirm")}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export default function CandidatePage() {
   const { id } = useParams();
   const { t } = useTranslation();
@@ -157,6 +252,7 @@ export default function CandidatePage() {
   const title = useVacancyTitle();
   const invalidate = useInvalidate();
   const [comment, setComment] = useState("");
+  const [hiring, setHiring] = useState(false);
 
   const { data: c, isLoading, error } = useQuery({
     queryKey: ["recruitment", "candidate", id],
@@ -164,10 +260,14 @@ export default function CandidatePage() {
     retry: false,
   });
   const act = useMutation({
-    mutationFn: (action: CandidateAction) =>
-      api(`/recruitment/candidates/${id}/actions`, { method: "POST", body: { action, comment } }),
+    mutationFn: ({ action, closeVacancy = false }: { action: CandidateAction; closeVacancy?: boolean }) =>
+      api(`/recruitment/candidates/${id}/actions`, {
+        method: "POST",
+        body: { action, comment, close_vacancy: closeVacancy },
+      }),
     onSuccess: () => {
       setComment("");
+      setHiring(false);
       invalidate();
     },
   });
@@ -180,74 +280,104 @@ export default function CandidatePage() {
   const hr = can("recruitment.manage");
 
   return (
-    <div className="stack narrow">
-      <BackLink to="/recruitment">{t("recruitment.title")}</BackLink>
+    <div className="stack">
+      <BackLink to="/recruitment">{t("cand.back")}</BackLink>
 
-      <section className="card stack">
-        <div className="section-head">
-          <div>
-            <h1>{c.full_name}</h1>
-            <span className="muted">
-              {title(c.vacancy)} · {t("recruitment.salary")}: <strong>{salary(c.expected_salary)}</strong> ·{" "}
-              {t("recruitment.received")}: {fmtDate(c.created_at)}
-            </span>
-          </div>
-          <StageBadge stage={c.stage} />
+      <div className="cand-layout">
+        <div className="stack">
+          <section className="card cand-card">
+            <div className="cand-head">
+              <Avatar name={c.full_name} size={64} />
+              <div className="cand-title">
+                <h1>{c.full_name}</h1>
+                <strong>{title(c.vacancy)}</strong>
+                <span className="row">
+                  <StageBadge stage={c.stage} />
+                  <span title={t("hrdash.match_hint")}>
+                    <MatchBadge score={c.match.score} />
+                  </span>
+                </span>
+              </div>
+            </div>
+            <dl className="fields">
+              <div>
+                <dt>{t("careers.email")}</dt>
+                <dd><a href={`mailto:${c.email}`}>{c.email}</a></dd>
+              </div>
+              <div>
+                <dt>{t("careers.phone")}</dt>
+                <dd><a href={`tel:${c.phone.replace(/\s/g, "")}`}>{c.phone}</a></dd>
+              </div>
+              <div>
+                <dt>{t("recruitment.salary")}</dt>
+                <dd>{salary(c.expected_salary)}</dd>
+              </div>
+              <div>
+                <dt>{t("recruitment.received")}</dt>
+                <dd>{fmtDate(c.created_at)}</dd>
+              </div>
+              <div>
+                <dt>{t("careers.social")}</dt>
+                <dd>{c.social || "—"}</dd>
+              </div>
+              <div>
+                <dt>{t("cand.number")}</dt>
+                <dd>{c.number}</dd>
+              </div>
+              {c.profile_url && (
+                <div className="field-wide">
+                  <dt>{t("careers.profile_url")}</dt>
+                  <dd><a href={c.profile_url} target="_blank" rel="noreferrer">{c.profile_url}</a></dd>
+                </div>
+              )}
+            </dl>
+            <details className="match-details">
+              <summary className="small">{t("hrdash.match")}: {c.match.score}%</summary>
+              <ul className="match-factors">
+                {c.match.factors.map((f) => (
+                  <li key={f.key}>
+                    <span className="small">{t(`hrdash.factor.${f.key}`)}</span>
+                    <span className="small muted">
+                      {f.points} / {f.max}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="muted small">{t("hrdash.match_hint")}</p>
+            </details>
+          </section>
+
+          {decisions.length > 0 && (
+            <section className="card actions">
+              <textarea rows={2} value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t("recruitment.comment_placeholder")} />
+              <div className="row">
+                {decisions.map((a) => (
+                  <button
+                    key={a}
+                    className={ACTION_STYLE[a]}
+                    disabled={act.isPending}
+                    onClick={() => (a === "hire" ? setHiring(true) : act.mutate({ action: a }))}
+                  >
+                    {t(`recruitment.action.${a}`)}
+                  </button>
+                ))}
+              </div>
+              {act.error && !hiring && <p className="error">{act.error.message}</p>}
+            </section>
+          )}
+
+          {c.comment && (
+            <section className="card">
+              <h2>{t("recruitment.candidate_comment")}</h2>
+              <p className="block-text">{c.comment}</p>
+            </section>
+          )}
         </div>
 
-        <ol className="steps">
-          {c.steps.map((s) => (
-            <li key={s.key} className={`step step-${s.state}`}>
-              <Icon src={STEP_ICON[s.state]} size={18} />
-              <span>{s.key === "decision" ? t("recruitment.actions") : t(`recruitment.stage.${s.key}`)}</span>
-            </li>
-          ))}
-        </ol>
-
-        {decisions.length > 0 && (
-          <div className="actions">
-            <textarea rows={2} value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t("recruitment.comment_placeholder")} />
-            <div className="row">
-              {decisions.map((a) => (
-                <button key={a} className={ACTION_STYLE[a]} disabled={act.isPending} onClick={() => act.mutate(a)}>
-                  {t(`recruitment.action.${a}`)}
-                </button>
-              ))}
-            </div>
-            {act.error && <p className="error">{act.error.message}</p>}
-          </div>
-        )}
-      </section>
+        <ProgressPanel c={c} />
+      </div>
 
       {c.allowed_actions.includes("schedule") && <ScheduleForm key={c.stage} c={c} />}
-
-      <section className="card">
-        <h2>{t("recruitment.contacts")}</h2>
-        <dl className="fields">
-          <div>
-            <dt>{t("careers.email")}</dt>
-            <dd><a href={`mailto:${c.email}`}>{c.email}</a></dd>
-          </div>
-          <div>
-            <dt>{t("careers.phone")}</dt>
-            <dd><a href={`tel:${c.phone.replace(/\s/g, "")}`}>{c.phone}</a></dd>
-          </div>
-          <div>
-            <dt>{t("careers.social")}</dt>
-            <dd>{c.social || "—"}</dd>
-          </div>
-          <div>
-            <dt>{t("careers.profile_url")}</dt>
-            <dd>{c.profile_url ? <a href={c.profile_url} target="_blank" rel="noreferrer">{c.profile_url}</a> : "—"}</dd>
-          </div>
-        </dl>
-        {c.comment && (
-          <>
-            <h2 style={{ marginTop: 16 }}>{t("recruitment.candidate_comment")}</h2>
-            <p className="block-text">{c.comment}</p>
-          </>
-        )}
-      </section>
 
       <section className="card">
         <div className="section-head">
@@ -293,6 +423,15 @@ export default function CandidatePage() {
           ))}
         </ol>
       </section>
+
+      {hiring && (
+        <HireModal
+          c={c}
+          busy={act.isPending}
+          onClose={() => setHiring(false)}
+          onConfirm={(closeVacancy) => act.mutate({ action: "hire", closeVacancy })}
+        />
+      )}
     </div>
   );
 }

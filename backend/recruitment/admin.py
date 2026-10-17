@@ -8,8 +8,8 @@ from recruitment.models import Candidate, CandidateEvent, Interview, Vacancy
 
 @admin.register(Vacancy)
 class VacancyAdmin(ModelAdmin):
-    list_display = ("title_ru", "department", "hiring_manager", "is_open", "candidates_count")
-    list_filter = ("is_open", "department")
+    list_display = ("title_ru", "department", "hiring_manager", "status", "employment_type", "candidates_count")
+    list_filter = ("status", "employment_type", "department")
     search_fields = ("title_ru", "title_kk")
 
     @admin.display(description="кандидатов")

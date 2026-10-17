@@ -98,6 +98,7 @@ export interface CourseShort {
   title_ru: string;
   title_kk: string;
   cover_emoji: string;
+  cover_icon: string; // ключ иконки из набора (icons.ts → courseIcons)
 }
 
 export interface CourseListItem extends CourseShort {
@@ -247,9 +248,32 @@ export interface PublicVacancy extends VacancyShort {
   description: string;
 }
 
+export type VacancyStatus = "draft" | "active" | "closed";
+export type EmploymentType = "full_time" | "part_time" | "contract" | "internship";
+
 export interface VacancyWithCounts extends VacancyShort {
   is_open: boolean;
   candidates_count: number;
+  status: VacancyStatus;
+  department: { id: number; name: string } | null;
+  employment_type: EmploymentType;
+  salary_from: number | null;
+  salary_to: number | null;
+  description: string;
+  active_candidates_count: number;
+  created_at: string;
+}
+
+export interface VacancyInput {
+  title_ru: string;
+  title_kk?: string;
+  department_id?: number | null;
+  hiring_manager_id?: number | null;
+  employment_type?: EmploymentType;
+  description?: string;
+  salary_from?: number | null;
+  salary_to?: number | null;
+  status?: VacancyStatus;
 }
 
 export interface CandidateInterview {
@@ -263,6 +287,15 @@ export interface CandidateInterview {
   feedback: string;
 }
 
+export interface CandidateStep {
+  key: CandidateStage | "decision";
+  label: string;
+  state: StepState;
+  date: string | null; // когда пройден (для интервью — их дата)
+}
+
+export type MatchFactor = "salary" | "resume" | "letter" | "progress" | "interviews";
+
 export interface CandidateListItem {
   id: number;
   full_name: string;
@@ -272,6 +305,8 @@ export interface CandidateListItem {
   expected_salary: number | null;
   created_at: string;
   next_interview: { kind: "hr" | "tech"; scheduled_at: string } | null;
+  number: string; // CV-0018 — по нему кандидат смотрит статус
+  match_score: number; // 0..100, соответствие вакансии (правила, не AI)
 }
 
 export interface CandidateDetail extends CandidateListItem {
@@ -282,10 +317,12 @@ export interface CandidateDetail extends CandidateListItem {
   resume_url: string | null; // /api/v1/recruitment/candidates/{id}/resume — только для HR и интервьюера
   comment: string;
   decision_stage: CandidateStage | "";
-  steps: { key: CandidateStage | "decision"; label: string; state: StepState }[];
+  steps: CandidateStep[];
   allowed_actions: CandidateAction[];
   interviews: CandidateInterview[];
   events: { id: number; action: string; stage: CandidateStage; actor_name: string | null; comment: string; created_at: string }[];
+  match: { score: number; factors: { key: MatchFactor; points: number; max: number }[] };
+  vacancy_status: VacancyStatus;
 }
 
 export interface UpcomingInterview extends CandidateInterview {
@@ -296,4 +333,27 @@ export interface RecruitmentSummary {
   new_resumes?: number; // только HR
   by_stage?: Record<CandidateStage, number>; // только HR
   upcoming_interviews: UpcomingInterview[];
+  upcoming_count: number;
+  open_vacancies?: number; // дальше — только HR
+  active_candidates?: number;
+  pending_requests?: number;
+  top_candidates?: CandidateListItem[];
+}
+
+export interface Interviewer {
+  id: number;
+  full_name: string;
+  role: Role;
+  employee_id: number | null;
+}
+
+/** Публичный статус заявки кандидата (по номеру и почте). */
+export interface ApplicationStatus {
+  number: string;
+  full_name: string;
+  vacancy: VacancyShort;
+  stage: CandidateStage;
+  created_at: string;
+  steps: { key: CandidateStage | "decision"; state: StepState; date: string | null }[];
+  next_interview: { kind: "hr" | "tech"; scheduled_at: string; location: string } | null;
 }

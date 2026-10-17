@@ -22,7 +22,7 @@ export default function ResumeForm() {
     queryKey: ["careers", "vacancies"],
     queryFn: () => api<PublicVacancy[]>("/careers/vacancies"),
   });
-  const [sent, setSent] = useState(false);
+  const [sent, setSent] = useState<string | null>(null); // номер заявки после отправки
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,12 +43,10 @@ export default function ResumeForm() {
     try {
       // multipart: файл и поля одним запросом; вход и CSRF не нужны (публичный адрес)
       const res = await fetch("/api/v1/careers/applications", { method: "POST", body: data });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(res.status === 429 ? "Слишком много отправок, попробуйте позже" : firstError(body) ?? `HTTP ${res.status}`);
-      }
+      const body = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(res.status === 429 ? "Слишком много отправок, попробуйте позже" : firstError(body) ?? `HTTP ${res.status}`);
       form.reset();
-      setSent(true);
+      setSent(body?.number ?? "");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("common.error"));
     } finally {
@@ -56,7 +54,7 @@ export default function ResumeForm() {
     }
   };
 
-  if (sent)
+  if (sent !== null)
     return (
       <div className="stack">
         <h1 className="icon-title">
@@ -64,7 +62,14 @@ export default function ResumeForm() {
           {t("careers.sent_title")}
         </h1>
         <p className="muted">{t("careers.sent_text")}</p>
-        <button type="button" className="btn-ghost" onClick={() => setSent(false)}>
+        {sent && (
+          <div className="number-box">
+            <span className="muted small">{t("track.your_number")}</span>
+            <strong>{sent}</strong>
+            <span className="muted small">{t("track.keep_number")}</span>
+          </div>
+        )}
+        <button type="button" className="btn-ghost" onClick={() => setSent(null)}>
           {t("careers.again")}
         </button>
       </div>

@@ -2,6 +2,7 @@ from django.core.validators import RegexValidator
 from rest_framework import serializers
 
 from recruitment import services
+from org.models import Department, Employee
 from recruitment.models import Candidate, CandidateEvent, Interview, Vacancy
 
 
@@ -51,10 +52,44 @@ class VacancyShortSerializer(serializers.ModelSerializer):
 
 
 class VacancyWithCountsSerializer(VacancyShortSerializer):
+    is_open = serializers.BooleanField(read_only=True)
+    department = serializers.SerializerMethodField()
     candidates_count = serializers.IntegerField(read_only=True)
+    active_candidates_count = serializers.IntegerField(read_only=True)
 
     class Meta(VacancyShortSerializer.Meta):
-        fields = VacancyShortSerializer.Meta.fields + ["is_open", "candidates_count"]
+        fields = VacancyShortSerializer.Meta.fields + [
+            "is_open", "candidates_count", "status", "department", "employment_type", "salary_from", "salary_to",
+            "description", "active_candidates_count", "created_at",
+        ]
+
+    def get_department(self, v) -> dict | None:
+        return {"id": v.department_id, "name": v.department.name_ru} if v.department_id else None
+
+
+class VacancyInputSerializer(serializers.ModelSerializer):
+    """Создание и изменение вакансии HR-ом (форма «Новая вакансия», смена статуса)."""
+
+    department_id = serializers.PrimaryKeyRelatedField(
+        source="department", queryset=Department.objects.all(), required=False, allow_null=True
+    )
+    hiring_manager_id = serializers.PrimaryKeyRelatedField(
+        source="hiring_manager", queryset=Employee.objects.all(), required=False, allow_null=True
+    )
+
+    class Meta:
+        model = Vacancy
+        fields = [
+            "title_ru", "title_kk", "department_id", "hiring_manager_id", "employment_type", "description",
+            "salary_from", "salary_to", "status",
+        ]
+
+    def validate(self, attrs):
+        lo = attrs.get("salary_from", getattr(self.instance, "salary_from", None))
+        hi = attrs.get("salary_to", getattr(self.instance, "salary_to", None))
+        if lo is not None and hi is not None and lo > hi:
+            raise serializers.ValidationError({"salary_to": "«До» должно быть не меньше «от»"})
+        return attrs
 
 
 class InterviewSerializer(serializers.ModelSerializer):
@@ -83,16 +118,24 @@ class CandidateListSerializer(serializers.ModelSerializer):
     vacancy = VacancyShortSerializer(read_only=True)
     reviewed = serializers.SerializerMethodField()
     next_interview = serializers.SerializerMethodField()
+    match_score = serializers.SerializerMethodField()
 
     class Meta:
         model = Candidate
-        fields = ["id", "full_name", "vacancy", "stage", "reviewed", "expected_salary", "created_at", "next_interview"]
+        fields = [
+            "id", "full_name", "vacancy", "stage", "reviewed", "expected_salary", "created_at", "next_interview",
+            "number", "match_score",
+        ]
+
+    def get_match_score(self, c) -> int:
+        return services.match_score(c)["score"]
 
     def get_reviewed(self, c) -> bool:
         return c.reviewed_at is not None
 
     def get_next_interview(self, c) -> dict | None:
-        i = c.interviews.filter(status=Interview.InterviewStatus.SCHEDULED).order_by("scheduled_at").first()
+        scheduled = [i for i in c.interviews.all() if i.status == Interview.InterviewStatus.SCHEDULED]
+        i = min(scheduled, key=lambda i: i.scheduled_at, default=None)
         return {"kind": i.kind, "scheduled_at": i.scheduled_at} if i else None
 
 
@@ -113,11 +156,13 @@ class CandidateDetailSerializer(CandidateListSerializer):
     allowed_actions = serializers.SerializerMethodField()
     interviews = InterviewSerializer(many=True, read_only=True)
     events = CandidateEventSerializer(many=True, read_only=True)
+    match = serializers.SerializerMethodField()
+    vacancy_status = serializers.CharField(source="vacancy.status", read_only=True)
 
     class Meta(CandidateListSerializer.Meta):
         fields = CandidateListSerializer.Meta.fields + [
             "email", "phone", "social", "profile_url", "resume_url", "comment", "decision_stage",
-            "steps", "allowed_actions", "interviews", "events",
+            "steps", "allowed_actions", "interviews", "events", "match", "vacancy_status",
         ]
 
     def get_resume_url(self, c) -> str | None:
@@ -130,10 +175,14 @@ class CandidateDetailSerializer(CandidateListSerializer):
     def get_allowed_actions(self, c) -> list[str]:
         return services.allowed_actions(self.context["request"].user, c)
 
+    def get_match(self, c) -> dict:
+        return services.match_score(c)
+
 
 class ActionInputSerializer(serializers.Serializer):
     action = serializers.ChoiceField(choices=[services.REVIEW, services.NEXT, services.REJECT, services.HIRE])
     comment = serializers.CharField(required=False, allow_blank=True, default="")
+    close_vacancy = serializers.BooleanField(required=False, default=False)  # при найме: закрыть вакансию
 
 
 class ScheduleInputSerializer(serializers.Serializer):
@@ -145,3 +194,30 @@ class ScheduleInputSerializer(serializers.Serializer):
 
 class FeedbackInputSerializer(serializers.Serializer):
     feedback = serializers.CharField(max_length=4000)
+
+
+# --- кандидат смотрит статус заявки (публично, по номеру и почте) ---
+
+class TrackInputSerializer(serializers.Serializer):
+    number = serializers.CharField(max_length=16)
+    email = serializers.EmailField()
+
+
+class TrackSerializer(serializers.ModelSerializer):
+    """Только то, что кандидат и так знает о себе: этап, шаги, дата его интервью. Без отзывов и имён HR."""
+
+    vacancy = VacancyShortSerializer(read_only=True)
+    steps = serializers.SerializerMethodField()
+    next_interview = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Candidate
+        fields = ["number", "full_name", "vacancy", "stage", "created_at", "steps", "next_interview"]
+
+    def get_steps(self, c) -> list[dict]:
+        return [{"key": s["key"], "state": s["state"], "date": s["date"]} for s in services.steps(c)]
+
+    def get_next_interview(self, c) -> dict | None:
+        scheduled = [i for i in c.interviews.all() if i.status == Interview.InterviewStatus.SCHEDULED]
+        i = min(scheduled, key=lambda i: i.scheduled_at, default=None)
+        return {"kind": i.kind, "scheduled_at": i.scheduled_at, "location": i.location} if i else None

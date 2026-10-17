@@ -9,6 +9,7 @@ import ApprovalsPage from "./pages/ApprovalsPage";
 import AssignCoursePage from "./pages/AssignCoursePage";
 import AssignmentPage from "./pages/AssignmentPage";
 import CandidatePage from "./pages/CandidatePage";
+import InterviewCalendarPage from "./pages/InterviewCalendarPage";
 import LessonPage from "./pages/LessonPage";
 import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
@@ -21,6 +22,7 @@ import RequestDetailPage from "./pages/RequestDetailPage";
 import RequestsPage from "./pages/RequestsPage";
 import TeamMemberPage from "./pages/TeamMemberPage";
 import TeamPage from "./pages/TeamPage";
+import VacanciesPage from "./pages/VacanciesPage";
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { me, loading } = useAuth();
@@ -97,6 +99,22 @@ export default function App() {
           element={
             <RequirePermission permission="recruitment.interviews">
               <RecruitmentPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="recruitment/vacancies"
+          element={
+            <RequirePermission permission="recruitment.manage">
+              <VacanciesPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="recruitment/calendar"
+          element={
+            <RequirePermission permission="recruitment.interviews">
+              <InterviewCalendarPage />
             </RequirePermission>
           }
         />

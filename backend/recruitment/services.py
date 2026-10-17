@@ -16,6 +16,7 @@ from recruitment.models import (
     InterviewKind,
     Stage,
     Vacancy,
+    VacancyStatus,
 )
 
 REVIEW, NEXT, REJECT, HIRE, SCHEDULE = "review", "next", "reject", "hire", "schedule"
@@ -64,7 +65,7 @@ def _validate_pdf(file) -> None:
 
 @transaction.atomic
 def submit_application(data: dict, resume_pdf=None) -> Candidate:
-    vacancy = Vacancy.objects.filter(pk=data["vacancy_id"], is_open=True).first()
+    vacancy = Vacancy.objects.filter(pk=data["vacancy_id"], status=VacancyStatus.ACTIVE).first()
     if vacancy is None:
         raise ValidationError({"vacancy_id": "Вакансия не найдена или закрыта"})
     if not data.get("profile_url") and resume_pdf is None:
@@ -112,7 +113,7 @@ def _close_open_interviews(c: Candidate) -> None:
 
 
 @transaction.atomic
-def apply_action(user, candidate: Candidate, action: str, comment: str = "") -> Candidate:
+def apply_action(user, candidate: Candidate, action: str, comment: str = "", close_vacancy: bool = False) -> Candidate:
     c = Candidate.objects.select_for_update().get(pk=candidate.pk)
     if action not in allowed_actions(user, c) or action == SCHEDULE:
         raise ValidationError({"action": f"Действие «{action}» недоступно на этапе «{c.get_stage_display()}»"})
@@ -133,6 +134,9 @@ def apply_action(user, candidate: Candidate, action: str, comment: str = "") -> 
         if action == HIRE and c.vacancy.hiring_manager:
             _notify(getattr(c.vacancy.hiring_manager, "user", None),
                     f"Принят кандидат: {c.full_name}", f"Позиция: {c.vacancy.title_ru}", c)
+        if action == HIRE and close_vacancy and c.vacancy.status == VacancyStatus.ACTIVE:
+            c.vacancy.status = VacancyStatus.CLOSED
+            c.vacancy.save(update_fields=["status"])
     c.save()
     return c
 
@@ -183,10 +187,25 @@ def leave_feedback(user, interview: Interview, feedback: str) -> Interview:
 
 # --- отображение ---
 
+def _stage_dates(c: Candidate) -> dict:
+    """Когда пройден каждый шаг: скрининг — просмотр резюме, интервью — их дата, решение — дата найма/отказа."""
+    interviews = [i for i in c.interviews.all() if i.status != Interview.InterviewStatus.CANCELLED]
+    last = {kind: max((i.scheduled_at for i in interviews if i.kind == kind), default=None) for kind in InterviewKind}
+    decision = next((e.created_at for e in reversed(c.events.all())
+                     if e.action in (Action.HIRED, Action.REJECTED)), None)
+    return {
+        Stage.SCREENING: c.reviewed_at,
+        Stage.HR_INTERVIEW: last[InterviewKind.HR],
+        Stage.TECH_INTERVIEW: last[InterviewKind.TECH],
+        "decision": decision,
+    }
+
+
 def steps(c: Candidate) -> list[dict]:
-    """Шаги для карточки: done (галочка) | current | rejected | pending (серый) | skipped."""
+    """Шаги для карточки: done (галочка) | current | rejected | pending (серый) | skipped; date — когда пройден."""
     result = []
     final = c.stage in FINAL_STAGES
+    dates = _stage_dates(c)
     # для принятых и отклонённых «текущий» шаг — тот, на котором принято решение
     current_idx = PIPELINE.index((c.decision_stage or Stage.SCREENING) if final else c.stage)
     for idx, stage in enumerate(PIPELINE):
@@ -203,14 +222,48 @@ def steps(c: Candidate) -> list[dict]:
             state = "done" if (stage == Stage.SCREENING and c.reviewed_at) else "current"
         else:
             state = "pending"
-        result.append({"key": stage, "label": Stage(stage).label, "state": state})
+        result.append({"key": stage, "label": Stage(stage).label, "state": state,
+                       "date": dates[stage] if state != "skipped" else None})
     decision = "hired" if c.stage == Stage.HIRED else "rejected" if c.stage == Stage.REJECTED else "pending"
-    result.append({"key": "decision", "label": "Решение", "state": decision})
+    result.append({"key": "decision", "label": "Решение", "state": decision, "date": dates["decision"]})
     return result
 
 
+# Соответствие кандидата вакансии — простые правила, пока нет AI-оценки резюме (её добавит AI Jana).
+# Сумма максимумов = 100.
+MATCH_RULES = {"salary": 35, "resume": 20, "letter": 10, "progress": 25, "interviews": 10}
+PROGRESS_POINTS = {Stage.SCREENING: 0, Stage.HR_INTERVIEW: 10, Stage.TECH_INTERVIEW: 20, Stage.HIRED: 25}
+
+
+def match_score(c: Candidate) -> dict:
+    """{"score": 0..100, "factors": [{"key", "points", "max"}]} — объяснимый балл без AI."""
+    v = c.vacancy
+    # зарплата: в вилке или ниже — максимум; до +15 % сверху — половина; неизвестно — нейтрально
+    if c.expected_salary is None or (v.salary_from is None and v.salary_to is None):
+        salary = 20
+    elif v.salary_to is None or c.expected_salary <= v.salary_to:
+        salary = 35
+    elif c.expected_salary <= v.salary_to * 1.15:
+        salary = 17
+    else:
+        salary = 0
+    resume = (15 if c.resume_pdf else 0) + (5 if c.profile_url else 0)
+    letter = 10 if len(c.comment.strip()) >= 20 else 5 if c.comment.strip() else 0
+    stage = c.decision_stage if c.stage == Stage.REJECTED else c.stage
+    progress = PROGRESS_POINTS.get(stage, 0) + (5 if stage == Stage.SCREENING and c.reviewed_at else 0)
+    done = [i for i in c.interviews.all() if i.status == Interview.InterviewStatus.DONE and i.feedback]
+    interviews = min(10, 5 * len(done))
+    points = {"salary": salary, "resume": resume, "letter": letter, "progress": progress, "interviews": interviews}
+    return {
+        "score": sum(points.values()),
+        "factors": [{"key": k, "points": p, "max": MATCH_RULES[k]} for k, p in points.items()],
+    }
+
+
 def summary(user) -> dict:
-    """Дашборд: новые резюме, воронка, ближайшие интервью (у руководителя — только свои)."""
+    """Дашборд: цифры, воронка, лучшие кандидаты (HR), ближайшие интервью (у руководителя — только свои)."""
+    from hr_requests.models import HrRequest, Status
+
     now = timezone.now()
     interviews = Interview.objects.filter(
         status=Interview.InterviewStatus.SCHEDULED,
@@ -218,7 +271,7 @@ def summary(user) -> dict:
     ).select_related("candidate__vacancy", "interviewer__employee")
     if not is_hr(user):
         interviews = interviews.filter(interviewer=user)
-    data = {"upcoming_interviews": interviews[:10]}
+    data = {"upcoming_interviews": interviews[:10], "upcoming_count": interviews.count()}
     if is_hr(user):
         counts = Candidate.objects.aggregate(
             new=Count("id", filter=Q(stage=Stage.SCREENING, reviewed_at__isnull=True)),
@@ -226,4 +279,24 @@ def summary(user) -> dict:
         )
         data["new_resumes"] = counts.pop("new")
         data["by_stage"] = counts
+        data["open_vacancies"] = Vacancy.objects.filter(status=VacancyStatus.ACTIVE).count()
+        data["active_candidates"] = sum(counts[s] for s in PIPELINE)
+        data["pending_requests"] = (
+            HrRequest.objects.filter(status=Status.WAITING_HR_APPROVAL).exclude(employee_id=user.employee_id).count()
+        )
+        active = (Candidate.objects.filter(stage__in=PIPELINE).select_related("vacancy")
+                  .prefetch_related("interviews"))
+        scored = sorted(((match_score(c)["score"], c) for c in active), key=lambda x: (-x[0], -x[1].pk))
+        data["top_candidates"] = [c for _, c in scored[:5]]
     return data
+
+
+# --- кандидат смотрит статус своей заявки ---
+
+def track_application(number: str, email: str) -> Candidate | None:
+    """По номеру CV-0018 и почте из заявки. Не нашли — None (не раскрываем, что именно не совпало)."""
+    digits = number.strip().upper().removeprefix("CV-").lstrip("0")
+    if not digits.isdigit():
+        return None
+    return (Candidate.objects.filter(pk=int(digits), email__iexact=email.strip())
+            .select_related("vacancy").prefetch_related("interviews", "events").first())

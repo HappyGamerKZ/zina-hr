@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import Icon from "./Icon";
@@ -10,6 +10,7 @@ import type { Lang } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { setLang } from "../i18n";
 import { getTheme, setTheme, type Theme } from "../theme";
+import logo from "../assets/logo.webp";
  
 interface NavItem {
   to: string;
@@ -23,6 +24,7 @@ export default function Layout() {
   const { me, logout, can } = useAuth();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
  
   // Уведомления: live-поток (SSE) присылает событие сразу → перечитываем счётчик.
   // Пришло новое уведомление (изменился latest_id) — обновляем заявки, главную и список
@@ -56,7 +58,14 @@ export default function Layout() {
     { to: "/profile", label: t("nav.profile"), icon: icons.profile, mobile: true },
     { to: "/team", label: t("nav.team"), icon: icons.team, permission: "team.view" },
     { to: "/team/approvals", label: t("nav.approvals"), icon: icons.approvals, permission: "requests.approve" },
-    { to: "/recruitment", label: t("recruitment.nav"), icon: icons.recruitment, permission: "recruitment.interviews" },
+    { to: "/recruitment/vacancies", label: t("hrdash.nav_vacancies"), icon: icons.recruitment, permission: "recruitment.manage" },
+    {
+      to: "/recruitment",
+      label: can("recruitment.manage") ? t("hrdash.nav_candidates") : t("recruitment.nav"),
+      icon: icons.candidates,
+      permission: "recruitment.interviews",
+    },
+    { to: "/recruitment/calendar", label: t("hrdash.nav_calendar"), icon: icons.calendar, permission: "recruitment.interviews" },
   ];
   const visible = items.filter((i) => !i.permission || can(i.permission));
  
@@ -83,7 +92,7 @@ export default function Layout() {
     <div className="shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark">J</span>
+          <img src={logo} alt="" className="brand-logo" />
           <div>
             <div className="brand-name">{t("app.name")}</div>
             <div className="brand-sub">{t("app.tagline")}</div>
@@ -91,7 +100,7 @@ export default function Layout() {
         </div>
         <nav>
           {visible.map((i) => (
-            <NavLink key={i.to} to={i.to} end={i.to === "/" || i.to === "/team"} className="nav-link">
+            <NavLink key={i.to} to={i.to} end={i.to === "/" || i.to === "/team" || i.to === "/recruitment"} className="nav-link">
               <span className="nav-icon" aria-hidden>
                 <Icon src={i.icon} />
               </span>
@@ -133,7 +142,7 @@ export default function Layout() {
               title={theme === "dark" ? t("theme.to_light") : t("theme.to_dark")}
               aria-label={theme === "dark" ? t("theme.to_light") : t("theme.to_dark")}
             >
-              {theme === "dark" ? "☀️" : "🌙"}
+              <Icon src={theme === "dark" ? icons.sun : icons.moon} size={18} />
             </button>
             <NavLink to="/notifications" className="bell" aria-label={t("nav.notifications")}>
               <Icon src={icons.bell} size={22} />
@@ -148,6 +157,11 @@ export default function Layout() {
         <main className="content">
           <Outlet />
         </main>
+        {pathname !== "/ai" && (
+          <Link to="/ai" className="ai-fab" aria-label={t("me_card.ai_fab")} title={t("me_card.ai_fab")}>
+            <Icon src={icons.ai} size={26} />
+          </Link>
+        )}
       </div>
  
       <nav className="bottom-nav">

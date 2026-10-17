@@ -13,7 +13,7 @@ from accounts.models import Role, User
 from core.demo_recruitment import make_pdf
 from notifications.models import Notification
 from org.models import Company, Department, Employee, Position
-from recruitment.models import Candidate, Interview, Stage, Vacancy
+from recruitment.models import Candidate, Interview, Stage, Vacancy, VacancyStatus
 
 APPLY = "/api/v1/careers/applications"
 
@@ -35,7 +35,7 @@ class RecruitmentTests(APITestCase):
         cls.other_mgr = person("other_manager", Role.MANAGER)
         cls.emp = person("employee", Role.EMPLOYEE)
         cls.vacancy = Vacancy.objects.create(title_ru="Логист", department=dep, hiring_manager=cls.mgr.employee)
-        cls.closed = Vacancy.objects.create(title_ru="Закрытая", is_open=False)
+        cls.closed = Vacancy.objects.create(title_ru="Закрытая", status=VacancyStatus.CLOSED)
 
     def setUp(self):
         cache.clear()  # счётчик ограничения частоты отправок
@@ -195,3 +195,69 @@ class RecruitmentTests(APITestCase):
         summary = self.client.get("/api/v1/recruitment/summary").data
         self.assertEqual(summary["new_resumes"], 1)
         self.assertEqual(summary["by_stage"]["hr_interview"], 1)
+
+    # --- вакансии, балл соответствия, статус для кандидата ---
+
+    def test_vacancy_create_status_and_public_form(self):
+        self.client.force_authenticate(self.emp)
+        self.assertEqual(self.client.post("/api/v1/recruitment/vacancies", {"title_ru": "X"}, format="json").status_code, 403)
+        self.client.force_authenticate(self.hr)
+        res = self.client.post("/api/v1/recruitment/vacancies", {
+            "title_ru": "Аналитик", "employment_type": "contract", "status": "draft",
+            "salary_from": 500_000, "salary_to": 400_000,
+        }, format="json")
+        self.assertEqual(res.status_code, 400)  # «до» меньше «от»
+        res = self.client.post("/api/v1/recruitment/vacancies", {
+            "title_ru": "Аналитик", "employment_type": "contract", "status": "draft", "salary_to": 600_000,
+        }, format="json")
+        self.assertEqual((res.status_code, res.data["status"], res.data["is_open"]), (201, "draft", False))
+        public = lambda: [v["title_ru"] for v in self.client.get("/api/v1/careers/vacancies").data]  # noqa: E731
+        self.assertNotIn("Аналитик", public())  # черновик в форме не виден
+        res = self.client.patch(f"/api/v1/recruitment/vacancies/{res.data['id']}", {"status": "active"}, format="json")
+        self.assertEqual(res.data["status"], "active")
+        self.assertIn("Аналитик", public())
+        drafts = self.client.get("/api/v1/recruitment/vacancies?status=closed").data
+        self.assertEqual([v["id"] for v in drafts], [self.closed.id])
+
+    def test_match_score_and_hire_closes_vacancy(self):
+        Vacancy.objects.filter(pk=self.vacancy.pk).update(salary_from=300_000, salary_to=450_000)
+        c = self.make_candidate()
+        self.client.force_authenticate(self.hr)
+        data = self.client.get(f"/api/v1/recruitment/candidates/{c.id}").data
+        # зарплата в вилке 35 + PDF 15 + короткий комментарий 5 + скрининг ещё не пройден 0
+        self.assertEqual(data["match"]["score"], 55)
+        self.assertEqual(sum(f["max"] for f in data["match"]["factors"]), 100)
+        self.assertEqual(self.client.get("/api/v1/recruitment/candidates").data[0]["match_score"], 55)
+        summary = self.client.get("/api/v1/recruitment/summary").data
+        self.assertEqual([x["id"] for x in summary["top_candidates"]], [c.id])
+        self.assertEqual(summary["open_vacancies"], 1)
+
+        res = self.client.post(f"/api/v1/recruitment/candidates/{c.id}/actions",
+                               {"action": "hire", "close_vacancy": True}, format="json")
+        self.assertEqual((res.data["stage"], res.data["vacancy_status"]), (Stage.HIRED, "closed"))
+        self.assertIsNotNone(res.data["steps"][-1]["date"])  # дата решения
+
+    def test_candidate_tracks_application_by_number_and_email(self):
+        res = self.apply()
+        number = res.data["number"]
+        self.assertRegex(number, r"^CV-\d{4}$")
+        track = lambda n, e: self.client.post("/api/v1/careers/status", {"number": n, "email": e}, format="json")  # noqa: E731
+        res = track(number.lower(), "C@Example.com")
+        self.assertEqual((res.status_code, res.data["stage"]), (200, Stage.SCREENING))
+        self.assertNotIn("email", res.data)
+        self.assertNotIn("events", res.data)  # отзывы и комментарии HR кандидату не показываем
+        self.assertEqual(track(number, "other@example.com").status_code, 404)
+        self.assertEqual(track("CV-9999", "c@example.com").status_code, 404)
+        self.assertEqual(track("abc", "c@example.com").status_code, 404)
+
+    def test_interview_calendar_scoped(self):
+        c = self.make_candidate(Stage.TECH_INTERVIEW)
+        self.client.force_authenticate(self.hr)
+        self.schedule(c, days=2, interviewer_id=self.mgr.id)
+        self.assertEqual(len(self.client.get("/api/v1/recruitment/interviews").data), 1)
+        self.assertEqual(self.client.get("/api/v1/recruitment/interviews?days=1").data, [])
+        self.assertEqual(self.client.get("/api/v1/recruitment/interviews?from=bad").status_code, 400)
+        self.client.force_authenticate(self.other_mgr)
+        self.assertEqual(self.client.get("/api/v1/recruitment/interviews").data, [])
+        self.client.force_authenticate(self.emp)
+        self.assertEqual(self.client.get("/api/v1/recruitment/interviews").status_code, 403)

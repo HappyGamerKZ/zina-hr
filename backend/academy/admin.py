@@ -45,12 +45,12 @@ class ModuleInline(TabularInline):
 
 @admin.register(Course)
 class CourseAdmin(ModelAdmin):
-    list_display = ("cover_emoji", "title_ru", "duration_min", "is_published", "assignments_count")
+    list_display = ("title_ru", "cover_icon", "duration_min", "is_published", "assignments_count")
     list_display_links = ("title_ru",)
     list_filter = ("is_published",)
     search_fields = ("title_ru", "title_kk")
     fieldsets = (
-        (None, {"fields": ("cover_emoji", "title_ru", "title_kk", "duration_min", "is_published")}),
+        (None, {"fields": ("cover_icon", "title_ru", "title_kk", "duration_min", "is_published")}),
         ("Описание для каталога", {"fields": ("description_ru", "description_kk")}),
     )
     inlines = [ModuleInline]

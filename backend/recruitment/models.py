@@ -16,6 +16,19 @@ from org.models import Department, Employee
 from recruitment.storage import private_storage
 
 
+class VacancyStatus(models.TextChoices):
+    DRAFT = "draft", "Черновик"
+    ACTIVE = "active", "Открыта"
+    CLOSED = "closed", "Закрыта"
+
+
+class EmploymentType(models.TextChoices):
+    FULL_TIME = "full_time", "Полная занятость"
+    PART_TIME = "part_time", "Частичная занятость"
+    CONTRACT = "contract", "Договор ГПХ"
+    INTERNSHIP = "internship", "Стажировка"
+
+
 class Vacancy(models.Model):
     title_ru = models.CharField("название (рус.)", max_length=200)
     title_kk = models.CharField("название (каз.)", max_length=200, blank=True)
@@ -27,7 +40,17 @@ class Vacancy(models.Model):
         on_delete=models.SET_NULL, related_name="+",
     )
     description = models.TextField("описание", blank=True)
-    is_open = models.BooleanField("открыта (видна в форме)", default=True)
+    employment_type = models.CharField(
+        "тип занятости", max_length=16, choices=EmploymentType.choices, default=EmploymentType.FULL_TIME
+    )
+    salary_from = models.PositiveIntegerField("зарплата от, ₸", null=True, blank=True)
+    salary_to = models.PositiveIntegerField("зарплата до, ₸", null=True, blank=True)
+    # в публичной форме видны только открытые; черновик ещё готовится, закрытая резюме не принимает
+    status = models.CharField("статус", max_length=8, choices=VacancyStatus.choices, default=VacancyStatus.ACTIVE)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, verbose_name="создал", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="+",
+    )
     created_at = models.DateTimeField("создана", auto_now_add=True)
 
     class Meta:
@@ -37,6 +60,10 @@ class Vacancy(models.Model):
 
     def __str__(self):
         return self.title_ru
+
+    @property
+    def is_open(self) -> bool:
+        return self.status == VacancyStatus.ACTIVE
 
 
 class Stage(models.TextChoices):
@@ -80,6 +107,11 @@ class Candidate(models.Model):
 
     def __str__(self):
         return f"{self.full_name} — {self.vacancy}"
+
+    @property
+    def number(self) -> str:
+        """Номер заявки: по нему и почте кандидат смотрит статус на сайте."""
+        return f"CV-{self.pk:04d}"
 
 
 class InterviewKind(models.TextChoices):

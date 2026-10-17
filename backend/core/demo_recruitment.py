@@ -4,7 +4,9 @@ from datetime import datetime, time, timedelta
 from django.core.files.base import ContentFile
 from django.utils import timezone
 
-from recruitment.models import Candidate, CandidateEvent, Interview, InterviewKind, Stage, Vacancy
+from recruitment.models import (
+    Candidate, CandidateEvent, EmploymentType, Interview, InterviewKind, Stage, Vacancy, VacancyStatus,
+)
 
 A = CandidateEvent.Action
 # Шрифт Helvetica в PDF без кириллицы — в демо-резюме позиции латиницей
@@ -47,14 +49,26 @@ def create_demo_recruitment(u: dict, e: dict) -> None:
     logist = Vacancy.objects.create(
         title_ru="Логист", title_kk="Логист", department=e["employee"].department,
         hiring_manager=e["manager_logistics"], description="Планирование доставок Китай → Казахстан → ЦА.",
+        salary_from=400_000, salary_to=520_000,
     )
     operator = Vacancy.objects.create(
         title_ru="Оператор отделения", title_kk="Бөлімше операторы", department=e["employee"].department,
         hiring_manager=e["manager_logistics"], description="Выдача и приём посылок, работа с клиентами.",
+        salary_from=250_000, salary_to=320_000, employment_type=EmploymentType.PART_TIME,
     )
     hr_vacancy = Vacancy.objects.create(
         title_ru="HR-специалист", title_kk="HR-маман", department=e["hr_spec_1"].department,
         hiring_manager=e["head_hr"], description="Кадровое делопроизводство и адаптация сотрудников.",
+    )
+    Vacancy.objects.create(
+        title_ru="Курьер", title_kk="Курьер", department=e["employee"].department, hiring_manager=e["manager_logistics"],
+        description="Доставка посылок по Алматы.", salary_from=280_000, salary_to=350_000,
+        status=VacancyStatus.CLOSED,
+    )
+    Vacancy.objects.create(
+        title_ru="Аналитик данных", title_kk="Деректер талдаушысы", department=e["hr_spec_1"].department,
+        hiring_manager=e["head_hr"], description="HR-аналитика и отчёты для руководства.",
+        employment_type=EmploymentType.CONTRACT, status=VacancyStatus.DRAFT,
     )
 
     def candidate(name, latin, vacancy, stage, salary, days_ago, *, reviewed=False, decision="", pdf=True,
@@ -80,6 +94,10 @@ def create_demo_recruitment(u: dict, e: dict) -> None:
         CandidateEvent.objects.create(candidate=c, action=A.SUBMITTED, stage=Stage.SCREENING)
         return c
 
+    def decided(c, action, days_ago, comment=""):
+        ev = CandidateEvent.objects.create(candidate=c, action=action, stage=c.stage, actor=u["hr_spec_1"], comment=comment)
+        CandidateEvent.objects.filter(pk=ev.pk).update(created_at=timezone.now() - timedelta(days=days_ago))
+
     def interview(c, kind, when, interviewer, location, status=Interview.InterviewStatus.SCHEDULED, feedback=""):
         Interview.objects.create(candidate=c, kind=kind, scheduled_at=when, interviewer=interviewer, location=location,
                                  status=status, feedback=feedback, created_by=u["hr_spec_1"])
@@ -102,8 +120,10 @@ def create_demo_recruitment(u: dict, e: dict) -> None:
     c = candidate("Нуриева Алия Сериковна", "Aliya Nurieva", hr_vacancy, Stage.TECH_INTERVIEW, 400_000, 8, reviewed=True)
     interview(c, InterviewKind.TECH, at(3, 12), u["head_hr"], "Кабинет HR")
     # 6. Отказ после HR-интервью
-    candidate("Жанибекова Сауле Аскаровна", "Saule Zhanibekova", operator, Stage.REJECTED, 350_000, 14,
+    c = candidate("Жанибекова Сауле Аскаровна", "Saule Zhanibekova", operator, Stage.REJECTED, 350_000, 14,
               reviewed=True, decision=Stage.HR_INTERVIEW)
+    decided(c, A.REJECTED, 10, "Нет опыта работы с клиентами")
     # 7. Принят после техинтервью
-    candidate("Сейтказы Арман Нурланович", "Arman Seitkazy", logist, Stage.HIRED, 480_000, 21,
+    c = candidate("Сейтказы Арман Нурланович", "Arman Seitkazy", logist, Stage.HIRED, 480_000, 21,
               reviewed=True, decision=Stage.TECH_INTERVIEW)
+    decided(c, A.HIRED, 5)

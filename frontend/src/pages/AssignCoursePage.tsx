@@ -73,7 +73,7 @@ export default function AssignCoursePage() {
             <option value="">—</option>
             {courses.data?.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.cover_emoji} {title(c)}
+                {title(c)}
               </option>
             ))}
           </select>

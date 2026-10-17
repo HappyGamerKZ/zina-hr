@@ -127,7 +127,7 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": None,
     # Публичная форма резюме: не больше 5 отправок в час с одного IP (в каждом процессе backend)
-    "DEFAULT_THROTTLE_RATES": {"careers": "5/hour"},
+    "DEFAULT_THROTTLE_RATES": {"careers": "5/hour", "careers_track": "20/hour"},
 }
 
 SPECTACULAR_SETTINGS = {

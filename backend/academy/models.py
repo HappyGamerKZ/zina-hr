@@ -17,12 +17,25 @@ from django.db import models
 from org.models import Employee
 
 
+class CoverIcon(models.TextChoices):
+    TRAINING = "training", "Обучение"
+    POLICIES = "policies", "Правила и безопасность"
+    ONBOARDING = "onboarding", "Адаптация"
+    PERFORMANCE = "performance", "Развитие"
+    COMPANY = "company", "Компания"
+    PEOPLE = "people", "Команда и клиенты"
+    DOCUMENTS = "documents", "Документы"
+    CERTIFICATE = "certificate", "Сертификат"
+
+
 class Course(models.Model):
     title_ru = models.CharField("название (рус.)", max_length=200)
     title_kk = models.CharField("название (каз.)", max_length=200, blank=True)
     description_ru = models.TextField("описание (рус.)", blank=True)
     description_kk = models.TextField("описание (каз.)", blank=True)
-    cover_emoji = models.CharField("значок", max_length=8, default="📘")
+    cover_emoji = models.CharField("значок (эмодзи, устарело)", max_length=8, default="📘")
+    # иконка из набора Jana HR (frontend/src/components/icons.ts)
+    cover_icon = models.CharField("иконка", max_length=16, choices=CoverIcon.choices, default=CoverIcon.TRAINING)
     duration_min = models.PositiveIntegerField("длительность, мин", default=30)
     is_published = models.BooleanField("опубликован", default=True)
     created_at = models.DateTimeField("создан", auto_now_add=True)

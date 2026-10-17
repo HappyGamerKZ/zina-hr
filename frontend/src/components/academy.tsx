@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 
 import type { Assignment, AssignmentStatus, CourseShort } from "../api/types";
 import { fmtDate } from "../i18n";
+import Icon from "./Icon";
+import { courseIcon } from "./icons";
 
 const TONE: Record<AssignmentStatus, string> = {
   assigned: "warn",
@@ -11,6 +13,15 @@ const TONE: Record<AssignmentStatus, string> = {
   completed: "ok",
   failed: "bad",
 };
+
+/** Обложка курса: иконка из набора Jana HR. */
+export function CourseCover({ course, big = false }: { course: CourseShort; big?: boolean }) {
+  return (
+    <span className={`course-emoji${big ? " big" : ""}`} aria-hidden>
+      <Icon src={courseIcon(course.cover_icon)} size={big ? 30 : 24} />
+    </span>
+  );
+}
 
 export function useCourseTitle() {
   const { i18n } = useTranslation();
@@ -36,9 +47,7 @@ export function AssignmentRow({ a, showEmployee = false }: { a: Assignment; show
   const title = useCourseTitle();
   return (
     <Link to={`/academy/assignments/${a.id}`} className="assignment-row">
-      <span className="course-emoji" aria-hidden>
-        {a.course.cover_emoji}
-      </span>
+      <CourseCover course={a.course} />
       <div className="assignment-main">
         <div className="row">
           <strong>{title(a.course)}</strong>

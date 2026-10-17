@@ -9,7 +9,7 @@ import { useAuth } from "../auth/AuthContext";
 import BackLink from "../components/BackLink";
 import Icon from "../components/Icon";
 import { icons } from "../components/icons";
-import { AssignmentBadge, Progress, useCourseTitle } from "../components/academy";
+import { AssignmentBadge, CourseCover, Progress, useCourseTitle } from "../components/academy";
 import { fmtDate } from "../i18n";
 
 const KIND_ICON: Record<LessonKind, string> = { text: icons.documents, quiz: icons.help };
@@ -39,9 +39,7 @@ export default function AssignmentPage() {
       <section className="card">
         <div className="section-head">
           <div className="row">
-            <span className="course-emoji big" aria-hidden>
-              {a.course.cover_emoji}
-            </span>
+            <CourseCover course={a.course} big />
             <div>
               <h1>{title(a.course)}</h1>
               {!own && <span className="muted">{a.employee.full_name}</span>}

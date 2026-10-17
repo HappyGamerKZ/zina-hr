@@ -6,12 +6,14 @@ import { api } from "../api/client";
 import type { Dashboard } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { AssignmentRow } from "../components/academy";
+import Avatar from "../components/Avatar";
+import HrOverview from "../components/HrOverview";
 import { RecruitmentWidget } from "../components/recruitment";
 import Icon from "../components/Icon";
 import { icons } from "../components/icons";
 import { EmptyState } from "../components/Illustration";
 import RequestList from "../components/RequestList";
-import { fmtDateTime } from "../i18n";
+import { fmtDate, fmtDateTime } from "../i18n";
 
 const QUICK_ICONS: Record<string, string> = {
   vacation: icons.vacation,
@@ -23,6 +25,7 @@ const QUICK_ICONS: Record<string, string> = {
 export default function DashboardPage() {
   const { t } = useTranslation();
   const { can } = useAuth();
+  const hr = can("recruitment.manage");
   const { data, isLoading, error } = useQuery({
     queryKey: ["dashboard"],
     queryFn: () => api<Dashboard>("/me/dashboard"),
@@ -36,18 +39,32 @@ export default function DashboardPage() {
 
   return (
     <div className="stack">
+      <div>
+        <h1>{t("dashboard.greeting", { name: firstName })}</h1>
+        {hr && <p className="muted page-sub">{t("hrdash.subtitle")}</p>}
+      </div>
+
       <section className="hero card">
-        <div>
-          <h1>{t("dashboard.greeting", { name: firstName })}</h1>
-          <p className="muted">
-            {profile.position} · {profile.department}
-          </p>
-        </div>
+        <Link to="/profile" className="profile-hero">
+          <Avatar name={profile.full_name} />
+          <span className="profile-hero-main">
+            <strong>{profile.full_name}</strong>
+            <span className="muted">
+              {profile.position} · {profile.department}
+            </span>
+            <span className="row">
+              <span className="status status-ok">{t("me_card.active")}</span>
+              <span className="status status-neutral">{t("me_card.since", { date: fmtDate(profile.hire_date) })}</span>
+            </span>
+          </span>
+        </Link>
         <div className="hero-stat">
           <span className="muted small">{t("dashboard.vacation_left")}</span>
           <strong>{t("common.days", { count: profile.vacation_balance.days_available })}</strong>
         </div>
       </section>
+
+      {hr && <HrOverview />}
 
       {can("requests.approve") && data.approvals_count > 0 && (
         <Link to="/team/approvals" className="card alert">
@@ -86,7 +103,7 @@ export default function DashboardPage() {
         </section>
 
         <div className="stack">
-          {can("recruitment.interviews") && <RecruitmentWidget />}
+          {can("recruitment.interviews") && !hr && <RecruitmentWidget />}
           <section className="card">
             <div className="section-head">
               <h2>{t("dashboard.learning")}</h2>

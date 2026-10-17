@@ -6,6 +6,50 @@
 
 ---
 
+## Дизайн экранов: вакансии, обзор HR, статус для кандидата, иконки курсов
+
+Только добавления, старые поля и адреса работают как раньше.
+
+### Вакансии (HR)
+
+| Метод | Адрес | Что делает |
+|---|---|---|
+| GET | `/recruitment/vacancies?status=&q=` | как раньше + новые поля: `status` (`draft` \| `active` \| `closed`), `department {id, name}`, `employment_type` (`full_time` \| `part_time` \| `contract` \| `internship`), `salary_from`, `salary_to`, `description`, `active_candidates_count`, `created_at`. `is_open` остался (= `status == "active"`) |
+| POST | `/recruitment/vacancies` | создать: `title_ru*`, `title_kk`, `department_id`, `hiring_manager_id` (id **сотрудника**), `employment_type`, `description`, `salary_from`, `salary_to`, `status` (по умолчанию `active`). Ответ `201` — вакансия в формате списка |
+| PATCH | `/recruitment/vacancies/{id}` | изменить любые поля из POST, например `{status: "closed"}` |
+| GET | `/recruitment/departments` | `[{id, name}]` для формы |
+
+- В публичной форме (`/careers/vacancies`) видны только `active`; на `draft` и `closed` резюме не принимаются.
+- `GET /recruitment/interviewers` — новое поле `employee_id` (для выбора руководителя вакансии).
+
+### Кандидаты
+
+- Список и карточка: новые поля `number` (`CV-0018`) и `match_score` (0–100).
+- Карточка: `match {score, factors[{key, points, max}]}` — `key`: `salary`, `resume`, `letter`, `progress`, `interviews`; сумма `max` = 100. Это **балл по правилам, не AI** (зарплата в вилке, PDF/ссылка, сопроводительный комментарий, этап, отзывы интервьюеров). AI-оценку позже добавит AI Jana.
+- Карточка: `vacancy_status` — статус вакансии кандидата.
+- `steps[]` — новое поле `date`: когда шаг пройден (скрининг — просмотр резюме, интервью — их дата, решение — дата найма/отказа), `null`, если ещё нет.
+- `POST /recruitment/candidates/{id}/actions` — для `hire` можно передать `close_vacancy: true`, вакансия станет `closed`.
+
+### Дашборд HR и календарь
+
+- `GET /recruitment/summary` — новые поля: `upcoming_count` (всем); только HR: `open_vacancies`, `active_candidates`, `pending_requests` (заявки сотрудников в статусе «В обработке HR», кроме своих), `top_candidates[]` (5 лучших по `match_score`, формат списка кандидатов).
+- `GET /recruitment/interviews?from=YYYY-MM-DD&days=31` — интервью за период (по умолчанию с сегодня на 31 день, максимум 92), без отменённых. HR — все, руководитель — свои, сотрудник — `403`. Формат — как `upcoming_interviews`.
+
+### Кандидат смотрит статус (публично, без входа)
+
+- `POST /careers/applications` теперь отвечает `{"status": "ok", "number": "CV-0018"}` — номер показать кандидату.
+- `POST /careers/status` `{number, email}` → `{number, full_name, vacancy, stage, created_at, steps[{key, state, date}], next_interview {kind, scheduled_at, location} | null}`. Не совпали номер и почта — `404`. Не больше 20 запросов в час с IP → `429`. Отзывов, комментариев и имён HR в ответе нет.
+
+### Вход
+
+- `POST /auth/login` — в поле `username` можно передать рабочую почту сотрудника (например `…@demo.janapost.test`), формат запроса не изменился.
+
+### Jana Academy
+
+- Курс (`CourseShort`, каталог, назначения): новое поле `cover_icon` — ключ иконки из набора (`training`, `policies`, `onboarding`, `performance`, `company`, `people`, `documents`, `certificate`). Во фронтенде: `courseIcon(key)` в `src/components/icons.ts`. Поле `cover_emoji` осталось, но больше не используется.
+
+---
+
 ## Подбор персонала (рекрутинг)
 
 Только новые адреса, старые не менялись. Права: HR (`hr_admin`) — всё; руководитель — только кандидаты, у которых он интервьюер (только просмотр и отзыв); сотрудник — `403`. В `GET /me` → `permissions` появились `recruitment.manage` (HR) и `recruitment.interviews` (HR и руководители).

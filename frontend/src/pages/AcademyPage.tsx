@@ -8,7 +8,7 @@ import { useAuth } from "../auth/AuthContext";
 import { EmptyState } from "../components/Illustration";
 import Icon from "../components/Icon";
 import { icons } from "../components/icons";
-import { AssignmentRow, useCourseTitle } from "../components/academy";
+import { AssignmentRow, CourseCover, useCourseTitle } from "../components/academy";
 
 type Tab = "my" | "catalog" | "team";
 
@@ -77,9 +77,7 @@ export default function AcademyPage() {
         <div className="course-grid">
           {catalog.data?.map((c) => (
             <section key={c.id} className="card course-card">
-              <span className="course-emoji big" aria-hidden>
-                {c.cover_emoji}
-              </span>
+              <CourseCover course={c} big />
               <h2>{title(c)}</h2>
               <p className="muted small">{i18n.language === "kk" && c.description_kk ? c.description_kk : c.description_ru}</p>
               <p className="small">

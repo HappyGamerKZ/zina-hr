@@ -17,6 +17,11 @@ import search from "../assets/jana-hr-icons/light/navigation/bare/search.svg";
 import help from "../assets/jana-hr-icons/light/navigation/bare/help.svg";
 import more from "../assets/jana-hr-icons/light/navigation/bare/more.svg";
 import messages from "../assets/jana-hr-icons/light/navigation/bare/messages.svg";
+import analytics from "../assets/jana-hr-icons/light/navigation/bare/analytics.svg";
+import logIn from "../assets/jana-hr-icons/light/navigation/bare/log-in.svg";
+// нарисованы в стиле набора: в нём не было значков темы
+import sun from "../assets/jana-hr-icons/light/navigation/bare/sun.svg";
+import moon from "../assets/jana-hr-icons/light/navigation/bare/moon.svg";
 // HR
 import training from "../assets/jana-hr-icons/light/hr-employee/bare/training.svg";
 import approvals from "../assets/jana-hr-icons/light/hr-employee/bare/approvals.svg";
@@ -27,18 +32,28 @@ import onboarding from "../assets/jana-hr-icons/light/hr-employee/bare/onboardin
 import policies from "../assets/jana-hr-icons/light/hr-employee/bare/policies.svg";
 import tasks from "../assets/jana-hr-icons/light/hr-employee/bare/tasks.svg";
 import timeOff from "../assets/jana-hr-icons/light/hr-employee/bare/time-off.svg";
+import candidates from "../assets/jana-hr-icons/light/hr-employee/bare/candidates.svg";
+import offer from "../assets/jana-hr-icons/light/hr-employee/bare/offer.svg";
+import employees from "../assets/jana-hr-icons/light/hr-employee/bare/employees.svg";
+import company from "../assets/jana-hr-icons/light/hr-employee/bare/company.svg";
+import performance from "../assets/jana-hr-icons/light/hr-employee/bare/performance.svg";
+import benefits from "../assets/jana-hr-icons/light/hr-employee/bare/benefits.svg";
+import feedback from "../assets/jana-hr-icons/light/hr-employee/bare/feedback.svg";
 // действия
 import add from "../assets/jana-hr-icons/light/actions/bare/add.svg";
 import attach from "../assets/jana-hr-icons/light/actions/bare/attach.svg";
 import download from "../assets/jana-hr-icons/light/actions/bare/download.svg";
 import externalLink from "../assets/jana-hr-icons/light/actions/bare/external-link.svg";
 import upload from "../assets/jana-hr-icons/light/actions/bare/upload.svg";
+import edit from "../assets/jana-hr-icons/light/actions/bare/edit.svg";
+import share from "../assets/jana-hr-icons/light/actions/bare/share.svg";
 // стрелки
 import chevronLeft from "../assets/jana-hr-icons/light/arrows-controls/bare/chevron-left.svg";
 import chevronRight from "../assets/jana-hr-icons/light/arrows-controls/bare/chevron-right.svg";
 import close from "../assets/jana-hr-icons/light/arrows-controls/bare/close.svg";
 import up from "../assets/jana-hr-icons/light/arrows-controls/bare/up.svg";
 import down from "../assets/jana-hr-icons/light/arrows-controls/bare/down.svg";
+import dropdown from "../assets/jana-hr-icons/light/arrows-controls/bare/dropdown.svg";
 
 export const icons = {
   // меню
@@ -60,6 +75,10 @@ export const icons = {
   more,
   messages,
   documents,
+  analytics,
+  logIn,
+  sun,
+  moon,
   // заявки и обучение
   vacation: leave,
   advance: expenses,
@@ -68,16 +87,41 @@ export const icons = {
   readOnly: policies, // щит: данные только для чтения, урок закрыт
   done: tasks, // галочка
   pending: timeOff, // часы
+  candidates,
+  offer,
+  employees,
+  company,
+  performance,
+  benefits,
+  feedback,
   // действия
   add,
   attach,
   download,
   externalLink,
   upload,
+  edit,
+  share,
   // стрелки
   back: chevronLeft,
   forward: chevronRight,
   close,
   up,
   down,
+  dropdown,
 };
+
+/** Обложки курсов Jana Academy: значение поля cover_icon курса → иконка. */
+export const courseIcons: Record<string, string> = {
+  training,
+  policies,
+  onboarding,
+  performance,
+  company,
+  people,
+  documents,
+  certificate: approvals,
+};
+
+export const courseIcon = (key: string | undefined) => (key && courseIcons[key]) || training;
+
