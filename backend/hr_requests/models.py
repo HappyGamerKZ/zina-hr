@@ -22,6 +22,9 @@ class Status(models.TextChoices):
 # После утверждения дни списываются в LeaveBalance.days_used (mock проводки в 1С:ЗУП).
 RESERVING_STATUSES = [Status.WAITING_MANAGER_APPROVAL, Status.WAITING_HR_APPROVAL]
 
+# Дни отпуска в этих заявках заняты: новый отпуск не может на них пересекаться.
+VACATION_BLOCKING_STATUSES = RESERVING_STATUSES + [Status.APPROVED_SENT_TO_1C]
+
 
 class VacationType(models.TextChoices):
     ANNUAL = "annual", "Ежегодный оплачиваемый"

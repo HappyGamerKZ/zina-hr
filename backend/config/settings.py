@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "hr_requests",
     "notifications",
     "integrations",
+    "academy",
 ]
 
 MIDDLEWARE = [

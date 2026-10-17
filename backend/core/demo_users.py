@@ -35,6 +35,22 @@ class Person:
     user: User | None
 
 
+def ensure_migrated() -> None:
+    """Seed по базе без свежих миграций падает невнятной ошибкой SQL — сообщаем понятно."""
+    from django.core.management.base import CommandError
+    from django.db import connection
+    from django.db.migrations.executor import MigrationExecutor
+
+    executor = MigrationExecutor(connection)
+    pending = executor.migration_plan(executor.loader.graph.leaf_nodes())
+    if pending:
+        names = ", ".join(f"{m.app_label}.{m.name}" for m, _ in pending)
+        raise CommandError(
+            f"Есть непримененные миграции: {names}.\n"
+            "Выполните: docker compose exec backend python manage.py migrate"
+        )
+
+
 def wipe_demo_data() -> None:
     """Очистить пользователей и всё, что на них ссылается, — команду можно запускать повторно.
 

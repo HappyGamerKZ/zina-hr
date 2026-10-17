@@ -39,8 +39,11 @@ class DashboardView(APIView):
         )[:5]
         notifications = Notification.objects.filter(user=user)
         visible_requests = HrRequest.objects.filter(employee__in=visible_employees(user))
+        profile = ProfileSerializer(employee).data
+        # незавершённые курсы — первыми
+        courses = sorted(profile["learning"], key=lambda a: a["status"] in ("completed", "failed"))
         return Response({
-            "profile": ProfileSerializer(employee).data,
+            "profile": profile,
             "quick_services": [
                 {"key": "vacation", "link": "/requests/new?type=vacation"},
                 {"key": "advance", "link": "/requests/new?type=advance"},
@@ -49,7 +52,7 @@ class DashboardView(APIView):
             ],
             "recent_requests": HrRequestListSerializer(my_requests, many=True).data,
             "approvals_count": approvals_queryset(user, visible_requests).count(),
-            "courses": [],  # Jana Academy — следующий этап
+            "courses": courses[:4],
             "notifications": NotificationSerializer(notifications[:5], many=True).data,
             "unread_notifications": notifications.filter(is_read=False).count(),
         })

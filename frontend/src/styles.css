@@ -185,6 +185,74 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--primary); o
 .table th, .table td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); }
 .table th { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
 
+/* --- vacation calendar (временно, до дизайна) --- */
+.calendar { border: 1px solid var(--border); border-radius: 12px; padding: 12px; max-width: 380px; }
+.calendar-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; text-transform: capitalize; }
+.calendar-head button { padding: 4px 12px; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.calendar-weekday { text-align: center; font-size: 0.75rem; color: var(--muted); padding: 4px 0; }
+.calendar-day { justify-content: center; padding: 8px 0; border-radius: 8px; background: var(--surface-2); color: var(--text); font-size: 0.9rem; }
+.calendar-day:hover:not(:disabled) { outline: 2px solid var(--primary); }
+.calendar-day:disabled { background: transparent; color: var(--muted); opacity: 0.45; }
+.calendar-day.busy-approved:disabled, .calendar-day.busy-pending:disabled { opacity: 1; text-decoration: line-through; }
+.busy-approved { background: var(--ok-soft) !important; color: var(--ok) !important; }
+.busy-pending { background: var(--warn-soft) !important; color: var(--warn) !important; }
+.calendar-day.selected { background: var(--primary); color: var(--primary-ink); }
+.calendar-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; color: var(--muted); }
+.calendar-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 12px; height: 12px; border-radius: 4px; display: inline-block; }
+.dot.selected { background: var(--primary); }
+.selected-range { margin: 0; }
+
+/* --- Jana Academy (временно, до дизайна) --- */
+.course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.course-card { display: flex; flex-direction: column; gap: 8px; }
+.course-card p { margin: 0; }
+.course-card .btn-primary, .course-card .btn-secondary { align-self: flex-start; margin-top: auto; }
+.course-emoji { font-size: 1.6rem; width: 44px; height: 44px; display: grid; place-items: center; background: var(--surface-2); border-radius: 12px; flex-shrink: 0; }
+.course-emoji.big { font-size: 2rem; width: 56px; height: 56px; }
+.assignment-row { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); color: var(--text); }
+.assignment-row:last-child { border-bottom: none; }
+.assignment-main { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+.lesson-list { list-style: none; margin: 0; padding: 0; }
+.lesson-row > a, .lesson-row > div { display: flex; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); color: var(--text); }
+.lesson-row:last-child > a, .lesson-row:last-child > div { border-bottom: none; }
+.lesson-row.locked { opacity: 0.55; }
+.lesson-title { display: flex; flex-direction: column; }
+.lesson-content { white-space: pre-line; line-height: 1.6; margin: 12px 0; }
+.lesson-media { width: 100%; border-radius: 10px; }
+.employee-picker { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.employee-picker legend { color: var(--muted); font-size: 0.9rem; }
+
+.question { display: flex; flex-direction: column; gap: 10px; }
+.question p { margin: 0; }
+.choices { display: flex; flex-direction: column; gap: 6px; }
+.choice { flex-direction: row; align-items: center; gap: 10px; color: var(--text); padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; }
+.choice input { width: auto; }
+.choice.checked { border-color: var(--primary); background: var(--primary-soft); }
+.ordering { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; counter-reset: step; }
+.ordering li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); cursor: grab; counter-increment: step; }
+.ordering li::before { content: counter(step); font-weight: 700; color: var(--primary); width: 18px; }
+.ordering li.dragging { opacity: 0.5; }
+.ordering-text { flex: 1; }
+.ordering-buttons { display: flex; gap: 4px; }
+.ordering-buttons button { padding: 2px 8px; }
+.drag-handle { color: var(--muted); }
+.fill-text { line-height: 2.4; }
+.blank { display: inline-flex; min-width: 90px; min-height: 32px; vertical-align: middle; justify-content: center; align-items: center; margin: 0 4px; border: 2px dashed var(--border); border-radius: 8px; padding: 0 4px; }
+.blank.filled { border-style: solid; border-color: var(--primary); }
+.blank-number { color: var(--muted); font-size: 0.8rem; }
+.word-bank { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px; border-radius: 10px; background: var(--surface-2); min-height: 48px; }
+.chip { display: inline-block; padding: 4px 12px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); font-weight: 600; cursor: grab; user-select: none; }
+.quiz-result.ok { border-color: var(--ok); background: var(--ok-soft); }
+.quiz-result.bad { border-color: var(--bad); background: var(--bad-soft); }
+.quiz-result h2 { margin: 0 0 8px; }
+.verdict-correct { border-left: 4px solid var(--ok); }
+.verdict-partial { border-left: 4px solid var(--warn); }
+.verdict-wrong { border-left: 4px solid var(--bad); }
+.answer-list { margin: 4px 0 0; padding-left: 20px; }
+.lesson-nav { justify-content: space-between; }
+
 /* --- login --- */
 .login-page { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
 .login-card { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 14px; position: relative; }

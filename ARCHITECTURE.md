@@ -19,7 +19,7 @@
 | БД | PostgreSQL 16 + расширение `pgvector` (`pgvector.django.VectorField`) | одна БД и для данных, и для векторного поиска |
 | AI | LLM через абстракцию `LLMProvider` (Claude API; ключ в `.env`) + локальные эмбеддинги `multilingual-e5-small` | RU/KZ, работает без внешнего сервиса эмбеддингов |
 | Фоновые задачи | контейнер `worker`: management-команда `run_worker` (outbox, синхронизация с mock 1С) | без Celery и брокера |
-| Уведомления | polling `GET /notifications/unread-count` раз в 15 с (позже SSE через ASGI) | просто и надёжно для демо |
+| Уведомления | polling `GET /notifications/unread-count` раз в 10 с: при новом `latest_id` фронт обновляет заявки и уведомления (позже SSE через ASGI) | просто и надёжно для демо |
 | Внешние системы | контейнеры `mock-1c-zup` и `mock-documentolog` (маленькие HTTP-сервисы) | реальная HTTP-граница, заменяется на боевые API |
 | Инфраструктура | Docker Compose, Nginx (раздаёт фронт + проксирует `/api`) | одна команда запуска |
 
@@ -152,15 +152,15 @@ erDiagram
 
 | Таблица | Ключевые поля |
 |---|---|
-| `courses` | `id`, `title_ru`, `title_kk`, `description`, `cover_url`, `duration_min`, `pass_score` (напр. 70), `is_published` |
-| `course_modules` | `id`, `course_id`, `order`, `title` |
-| `lessons` | `id`, `module_id`, `order`, `type` (`text`/`video`/`pdf`/`quiz`), `content_md`, `media_url` |
-| `quizzes` | `id`, `lesson_id`, `max_attempts`, `pass_score` |
-| `quiz_questions` | `id`, `quiz_id`, `order`, `text`, `type` (`single`/`multiple`) |
-| `quiz_options` | `id`, `question_id`, `text`, `is_correct` (никогда не отдаётся на фронт) |
-| `course_assignments` | `id`, `course_id`, `employee_id`, `assigned_by`, `due_date`, `status` (`assigned`/`in_progress`/`completed`/`failed`), `progress_pct`, `score`, `started_at`, `completed_at` — **видна в профиле** |
-| `lesson_progress` | `assignment_id`, `lesson_id`, `status` (`not_started`/`viewed`/`completed`), `completed_at` |
-| `quiz_attempts` | `id`, `assignment_id`, `quiz_id`, `answers jsonb`, `score`, `passed`, `created_at` |
+| `Course` | `title_ru`, `title_kk`, `description_ru/kk`, `cover_emoji`, `duration_min`, `is_published` |
+| `CourseModule` | `course`, `order`, `title` |
+| `Lesson` | `module`, `order`, `title`, `type` (`text`/`video`/`pdf`/`quiz`), `content`, `media_url`, `duration_min` |
+| `Quiz` | `lesson` (1:1), `pass_score` (%), `max_attempts` (0 — без ограничений) |
+| `Question` | `quiz`, `order`, `type` (`single`/`multiple`/`ordering`/`fill_blanks`), `text` (для `fill_blanks` — с пропусками `{{1}}`, `{{2}}`), `points`, `explanation` |
+| `Option` | `question`, `text`, `is_correct` (single/multiple), `correct_position` (ordering — место 1..N; fill_blanks — номер пропуска, пусто — лишнее слово). **Не отдаются на фронт до проверки** |
+| `CourseAssignment` | `course`, `employee`, `assigned_by`, `due_date`, `status` (`assigned`/`in_progress`/`completed`/`failed`), `progress_pct`, `score`, `started_at`, `completed_at` — **видно в профиле** |
+| `LessonProgress` | `assignment`, `lesson`, `completed_at` |
+| `QuizAttempt` | `assignment`, `quiz`, `answers` (JSON), `details` (результат по вопросам), `score`, `passed` |
 
 **AI Jana и база знаний**
 
@@ -255,15 +255,18 @@ stateDiagram-v2
 | PATCH | `/requests/{id}/reject`, `/cancel`, `/submit` | по state machine | отклонить (с комментарием) / отменить / отправить черновик |
 | GET | `/team` | manager | моя команда (только прямые подчинённые) |
 | GET | `/team/{employee_id}` | manager | разрешённые данные подчинённого |
-| GET | `/academy/courses` | все | каталог |
-| GET | `/academy/my` | все | назначенные курсы + прогресс |
-| GET | `/academy/assignments/{id}` | владелец / manager / HR | курс со статусами уроков |
+| GET | `/academy/courses`, `/academy/courses/{id}` | все | каталог, структура курса + моё назначение |
+| POST | `/academy/courses/{id}/enroll` | все | записаться самому |
+| GET | `/academy/assignments?scope=my\|team\|all` | все / manager / HR | мои курсы / обучение команды / все |
+| GET | `/academy/assignments/{id}` | владелец / manager / HR | курс со статусами уроков (`completed`/`available`/`locked`) и состоянием тестов |
+| GET | `/academy/assignments/{id}/lessons/{lesson_id}` | владелец | материал урока; для теста — вопросы без правильных ответов |
 | POST | `/academy/assignments/{id}/lessons/{lesson_id}/complete` | владелец | отметить урок |
-| POST | `/academy/assignments/{id}/quizzes/{quiz_id}/attempts` | владелец | отправить ответы → оценка на сервере |
-| POST | `/academy/assignments` | manager (своим) / HR | назначить курс |
+| POST | `/academy/assignments/{id}/quizzes/{quiz_id}/attempts` | владелец | `{answers}` → оценка на сервере, разбор |
+| POST | `/academy/assignments` | manager (своим) / HR | `{course_id, employee_ids, due_date}` → назначить + уведомление |
 | POST | `/ai/ask` | все | вопрос AI Jana → `{answer, status, citations[], suggested_action}` |
 | POST | `/ai/escalate` | все | передать вопрос в HR → `hr_tickets` |
-| GET | `/notifications`, `/notifications/unread-count` | все | центр уведомлений (polling) |
+| GET | `/notifications`, `/notifications/unread-count` | все | центр уведомлений; `unread-count` → `{count, latest_id}` для polling |
+| GET | `/requests/vacation-calendar` | все (только свои) | занятые дни отпуска (на согласовании и утверждённые) для календаря |
 | POST | `/notifications/{id}/read`, `/notifications/read-all` | все | прочитано |
 | — | `/admin/` (Django Admin, вне `/api/v1`) | hr_admin | курсы, уроки, тесты, статьи БЗ, сотрудники, лог интеграций |
 | GET | `/hr/tickets`, POST `/hr/tickets/{id}/answer` | hr_admin | эскалации из AI Jana (в SPA) |
@@ -289,10 +292,23 @@ flowchart LR
     F --> P["Профиль: блок «Обучение»<br/>прогресс %, результат, сертификат"]
 ```
 
-- `progress_pct` = завершённые уроки / все уроки курса (пересчитывается сервером при каждом `complete`).
-- Правильные ответы никогда не уходят на фронт; оценка теста только на сервере.
-- Связь с профилем: `/me/profile` и `/me/dashboard` возвращают `courses[] {title, progress_pct, status, score}`; руководитель видит прогресс своей команды в `/team/{id}`.
-- Seed: 2 курса — «Адаптация в Jana Post» (3 урока + тест) и «Информационная безопасность» (2 урока + тест).
+**Типы вопросов и проверка (`academy/grading.py`):**
+
+| Тип | Как отвечает сотрудник | Ответ в API | Баллы |
+|---|---|---|---|
+| `single` | один вариант | `id` | всё или ничего |
+| `multiple` | несколько вариантов | `[id, …]` | (верные − лишние) / все верные, не меньше 0 |
+| `ordering` | перетаскивает варианты в правильном порядке | `[id в выбранном порядке]` | доля позиций на своих местах |
+| `fill_blanks` | перетаскивает слова в пропуски внутри текста (есть лишние слова) | `{"1": id, "2": id}` | доля верно заполненных пропусков |
+
+- Уроки открываются по порядку: следующий доступен после всех предыдущих (проверяет сервер).
+- Тест засчитывается при `score ≥ pass_score`; попытки ограничены `max_attempts`. Правильные ответы и пояснения сервер показывает только после сдачи или когда попытки закончились.
+- Варианты `ordering` и `fill_blanks` перемешиваются стабильно для каждого сотрудника (не прыгают при обновлении страницы).
+- `progress_pct` = пройденные уроки / все уроки; при 100% → `completed`, `score` = лучший результат по тестам курса.
+- Назначение: HR — любому, руководитель — только своим подчинённым; сам сотрудник может записаться из каталога.
+- Связь с профилем: `/me/profile` → `learning[]`, `/me/dashboard` → `courses[]`; руководитель видит обучение подчинённого в `/team/{id}` и `/academy/assignments?scope=team`, но не проходит курс за него.
+- Контент (курсы, уроки, тесты, вопросы, варианты) редактируется в Django Admin.
+- Seed (`core/demo_courses.py`): «Адаптация в Jana Post», «Информационная безопасность» (в каждом тесте все 4 типа вопросов) и «Клиентский сервис в отделении» для записи из каталога.
 
 ---
 
@@ -423,6 +439,7 @@ sequenceDiagram
 - **Типизированный клиент**: drf-spectacular отдаёт `/api/schema/`; `npm run gen:api` генерирует `src/api/schema.d.ts`; запросы через TanStack Query.
 - **CSRF**: фронт читает cookie `csrftoken` и шлёт его в `X-CSRFToken` во всех POST/PATCH/DELETE.
 - **Кэш и обновление**: после `PATCH /requests/{id}/approve-manager` (и других действий) фронт инвалидирует `['requests']`, `['dashboard']`; у получателя обновление приходит через polling уведомлений.
+- **Путь к live-уведомлениям (следующий этап):** backend переводится на ASGI (uvicorn), появляется `GET /notifications/stream` (Server-Sent Events). При создании `Notification` сервер делает `NOTIFY` в PostgreSQL, поток пользователя получает его через `LISTEN` и сразу отправляет событие в браузер; фронт подписывается через `EventSource` и инвалидирует кэш так же, как сейчас при polling. Polling остаётся запасным вариантом.
 - **Права на фронте** — `GET /me` возвращает `role` и `permissions[]`; меню и route guards строятся из них. При `401/403` от `/me` → `/login`.
 - **Локализация**: язык из `users.locale`, переключатель RU/KZ в шапке; контент из БД отдаётся с `name_ru`/`name_kk`, backend выбирает по заголовку `Accept-Language`.
 - **Адаптивность**: mobile-first, на телефоне нижняя навигация (Главная / Заявки / Обучение / AI / Ещё).

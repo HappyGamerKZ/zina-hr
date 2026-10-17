@@ -9,6 +9,7 @@ from accounts.models import Role
 from hr_requests import services, state_machine
 from hr_requests.models import HrRequest, Status
 from hr_requests.serializers import (
+    BusyVacationSerializer,
     CommentSerializer,
     HrRequestCreateSerializer,
     HrRequestDetailSerializer,
@@ -99,6 +100,15 @@ class HrRequestViewSet(
             HrRequestDetailSerializer(req, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
         )
+
+    @extend_schema(responses=BusyVacationSerializer(many=True))
+    @action(detail=False, methods=["get"], url_path="vacation-calendar")
+    def vacation_calendar(self, request):
+        """Занятые дни отпуска текущего сотрудника — их нельзя выбрать в календаре новой заявки."""
+        if request.user.employee_id is None:
+            return Response([])
+        items = services.busy_vacations(request.user.employee)
+        return Response(BusyVacationSerializer(items, many=True).data)
 
     def _run(self, request, transition: str):
         req = self.get_object()  # 404, если заявка вне зоны видимости

@@ -60,6 +60,39 @@ def on_request_status_changed(request, old_status, actor, **_):
             )
 
 
+def on_course_assigned(assignment, actor, **_):
+    who = actor.employee.full_name if getattr(actor, "employee", None) else actor.username
+    due = f" Срок: {assignment.due_date:%d.%m.%Y}." if assignment.due_date else ""
+    notify(
+        _user_of(assignment.employee),
+        NotificationType.COURSE_ASSIGNED,
+        f"Назначен курс «{assignment.course.title_ru}»",
+        f"Назначил(а): {who}.{due}",
+        f"/academy/assignments/{assignment.pk}",
+    )
+
+
+def on_course_completed(assignment, **_):
+    score = f", результат {assignment.score}%" if assignment.score is not None else ""
+    link = f"/academy/assignments/{assignment.pk}"
+    notify(
+        _user_of(assignment.employee),
+        NotificationType.COURSE_COMPLETED,
+        f"Курс «{assignment.course.title_ru}» завершён",
+        f"Поздравляем! Курс пройден{score}.",
+        link,
+    )
+    notify(
+        _user_of(assignment.employee.manager),
+        NotificationType.COURSE_COMPLETED,
+        f"{assignment.employee.full_name} завершил(а) курс «{assignment.course.title_ru}»",
+        f"Курс пройден{score}.",
+        link,
+    )
+
+
 def register():
     events.subscribe(events.REQUEST_SUBMITTED, on_request_submitted)
     events.subscribe(events.REQUEST_STATUS_CHANGED, on_request_status_changed)
+    events.subscribe(events.COURSE_ASSIGNED, on_course_assigned)
+    events.subscribe(events.COURSE_COMPLETED, on_course_completed)

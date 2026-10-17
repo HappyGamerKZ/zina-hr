@@ -4,7 +4,11 @@ import { useTranslation } from "react-i18next";
 
 import { useAuth } from "./auth/AuthContext";
 import Layout from "./components/Layout";
+import AcademyPage from "./pages/AcademyPage";
 import ApprovalsPage from "./pages/ApprovalsPage";
+import AssignCoursePage from "./pages/AssignCoursePage";
+import AssignmentPage from "./pages/AssignmentPage";
+import LessonPage from "./pages/LessonPage";
 import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
 import NewRequestPage from "./pages/NewRequestPage";
@@ -49,7 +53,17 @@ export default function App() {
         <Route path="requests/new" element={<NewRequestPage />} />
         <Route path="requests/:id" element={<RequestDetailPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
-        <Route path="academy" element={<PlaceholderPage title={t("nav.academy")} />} />
+        <Route path="academy" element={<AcademyPage />} />
+        <Route
+          path="academy/assign"
+          element={
+            <RequirePermission permission="team.view">
+              <AssignCoursePage />
+            </RequirePermission>
+          }
+        />
+        <Route path="academy/assignments/:id" element={<AssignmentPage />} />
+        <Route path="academy/assignments/:id/lessons/:lessonId" element={<LessonPage />} />
         <Route path="ai" element={<PlaceholderPage title={t("nav.ai")} />} />
         <Route
           path="team"

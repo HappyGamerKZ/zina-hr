@@ -1,5 +1,6 @@
+import { useEffect, useRef } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { api } from "../api/client";
@@ -20,12 +21,28 @@ export default function Layout() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
 
-  // Polling уведомлений: смена статуса заявки у другого пользователя появится в течение 15 с.
+  // Polling уведомлений раз в 10 с. Пришло новое уведомление (изменился latest_id) —
+  // обновляем заявки, главную и список уведомлений без перезагрузки страницы.
+  // Позже заменяется на SSE: сервер сам пришлёт событие (см. ARCHITECTURE.md §9.2).
+  const qc = useQueryClient();
   const unread = useQuery({
     queryKey: ["notifications", "unread"],
-    queryFn: () => api<{ count: number }>("/notifications/unread-count"),
-    refetchInterval: 15_000,
+    queryFn: () => api<{ count: number; latest_id: number | null }>("/notifications/unread-count"),
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: true,
   });
+  const latestId = unread.data?.latest_id;
+  const seenId = useRef<number | null | undefined>(undefined);
+  useEffect(() => {
+    if (latestId === undefined) return;
+    if (seenId.current !== undefined && seenId.current !== latestId) {
+      qc.invalidateQueries({ queryKey: ["requests"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["notifications", "list"] });
+      qc.invalidateQueries({ queryKey: ["profile"] });
+    }
+    seenId.current = latestId;
+  }, [latestId, qc]);
 
   const items: NavItem[] = [
     { to: "/", label: t("nav.home"), icon: "⌂", mobile: true },

@@ -92,5 +92,15 @@ class HrRequestCreateSerializer(serializers.Serializer):
         return attrs
 
 
+class BusyVacationSerializer(serializers.ModelSerializer):
+    request_id = serializers.IntegerField(source="request.id")
+    number = serializers.CharField(source="request.number")
+    status = serializers.CharField(source="request.status")
+
+    class Meta:
+        model = VacationDetails
+        fields = ["request_id", "number", "status", "date_from", "date_to", "days"]
+
+
 class CommentSerializer(serializers.Serializer):
     comment = serializers.CharField(required=False, allow_blank=True, default="")

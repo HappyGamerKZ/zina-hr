@@ -9,8 +9,12 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
+from academy import services as academy_services
+from academy.grading import correct_answer, grade_quiz
+from academy.models import AssignmentStatus, Course, CourseAssignment, LessonProgress, LessonType, QuizAttempt
 from accounts.models import User
-from core.demo_users import DEMO_LOGINS, DEMO_PASSWORD, create_demo_users, wipe_demo_data
+from core.demo_courses import create_demo_courses
+from core.demo_users import DEMO_LOGINS, DEMO_PASSWORD, create_demo_users, ensure_migrated, wipe_demo_data
 from hr_requests.models import (
     AdvanceDetails,
     HrRequest,
@@ -67,6 +71,34 @@ def _sent_to_1c(req, auto: bool) -> None:
     RequestEvent.objects.filter(request=req, to_status=DONE).update(comment=note)
 
 
+def seed_academy(u, e, today):
+    """Курсы и назначения: в процессе, новое, завершённое (с попыткой теста), начатое у коллеги."""
+    Course.objects.all().delete()
+    courses = create_demo_courses()
+    onboarding, security = courses["onboarding"], courses["security"]
+
+    def assignment(course, emp, by, lessons_done=0, due=None, pass_quizzes=False):
+        a = CourseAssignment.objects.create(course=course, employee=emp, assigned_by=by, due_date=due)
+        for lesson in academy_services.ordered_lessons(course)[:lessons_done]:
+            if lesson.type == LessonType.QUIZ:
+                quiz = lesson.quiz
+                answers = {str(q.id): correct_answer(q) for q in quiz.questions.prefetch_related("options")}
+                score, details = grade_quiz(quiz, answers)
+                QuizAttempt.objects.create(assignment=a, quiz=quiz, answers=answers, details=details,
+                                           score=score, passed=score >= quiz.pass_score)
+            LessonProgress.objects.create(assignment=a, lesson=lesson)
+        if lessons_done:
+            a.status, a.started_at = AssignmentStatus.IN_PROGRESS, timezone.now()
+        academy_services._recalc(a)
+        return a
+
+    emp_onboarding = assignment(onboarding, e["employee"], u["head_hr"], lessons_done=1)
+    emp_security = assignment(security, e["employee"], u["manager_logistics"], due=today + timedelta(days=14))
+    assignment(onboarding, e["colleague_1"], u["head_hr"], lessons_done=4)  # завершён, тест сдан
+    assignment(security, e["colleague_2"], u["manager_logistics"], lessons_done=1)
+    return emp_onboarding, emp_security
+
+
 class Command(BaseCommand):
     help = "Заполнить базу демо-данными JanaМен"
 
@@ -75,6 +107,7 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, reset=False, **options):
+        ensure_migrated()
         if not reset and User.objects.filter(username="employee").exists():
             self.stdout.write("Демо-данные уже есть, пропускаю (используйте --reset).")
             return
@@ -148,8 +181,12 @@ class Command(BaseCommand):
         note(u["employee"], NotificationType.REQUEST_STATUS_CHANGED,
              f"Заявка {adv.number}: утверждено / передано в 1С",
              "Аванс 80 000 ₸: приказ оформлен, передано в бухгалтерию", f"/requests/{adv.pk}", 7)
+        onboarding, security = seed_academy(u, e, today)
         note(u["employee"], NotificationType.COURSE_ASSIGNED, "Назначен курс «Адаптация в Jana Post»",
-             "Пройдите курс до конца месяца", "/academy", 2)
+             "Назначил(а): Касымова Динара Маратовна.", f"/academy/assignments/{onboarding.pk}", 3, read=True)
+        note(u["employee"], NotificationType.COURSE_ASSIGNED, "Назначен курс «Информационная безопасность»",
+             f"Назначил(а): Бекенов Ерлан Серикович. Срок: {security.due_date:%d.%m.%Y}.",
+             f"/academy/assignments/{security.pk}", 1)
         note(u["manager_logistics"], new, "Новая заявка на отпуск",
              "Омаров Тимур Асланович отправил заявку на согласование", "/team/approvals", 1)
         for hr in ("hr_spec_1", "hr_spec_2", "head_hr"):  # общий пул: уведомление получают все HR

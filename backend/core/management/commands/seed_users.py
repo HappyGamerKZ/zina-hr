@@ -8,7 +8,7 @@ python manage.py seed_users
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from core.demo_users import DEMO_LOGINS, DEMO_PASSWORD, create_demo_users, wipe_demo_data
+from core.demo_users import DEMO_LOGINS, DEMO_PASSWORD, create_demo_users, ensure_migrated, wipe_demo_data
 
 
 class Command(BaseCommand):
@@ -16,6 +16,7 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
+        ensure_migrated()
         wipe_demo_data()
         people = create_demo_users()
 

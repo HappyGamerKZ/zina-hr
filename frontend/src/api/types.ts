@@ -35,6 +35,7 @@ export interface Profile {
   source: string;
   synced_at: string | null;
   vacation_balance: VacationBalance;
+  learning: Assignment[];
 }
 
 export type RequestType = "vacation" | "advance";
@@ -76,6 +77,116 @@ export interface HrRequestDetail extends HrRequest {
   external_accounting_id: string;
 }
 
+// --- Jana Academy ---
+
+export type AssignmentStatus = "assigned" | "in_progress" | "completed" | "failed";
+export type LessonKind = "text" | "video" | "pdf" | "quiz";
+export type QuestionKind = "single" | "multiple" | "ordering" | "fill_blanks";
+
+export interface CourseShort {
+  id: number;
+  title_ru: string;
+  title_kk: string;
+  cover_emoji: string;
+}
+
+export interface CourseListItem extends CourseShort {
+  description_ru: string;
+  description_kk: string;
+  duration_min: number;
+  lessons_count: number;
+  my_assignment: { id: number; status: AssignmentStatus; progress_pct: number } | null;
+}
+
+export interface Assignment {
+  id: number;
+  course: CourseShort;
+  employee: { id: number; full_name: string };
+  status: AssignmentStatus;
+  progress_pct: number;
+  score: number | null;
+  due_date: string | null;
+  assigned_by_name: string | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface QuizState {
+  id: number;
+  pass_score: number;
+  max_attempts: number;
+  attempts_used: number;
+  attempts_left: number | null; // null — без ограничений
+  best_score: number | null;
+  passed: boolean;
+}
+
+export interface OutlineLesson {
+  id: number;
+  title: string;
+  type: LessonKind;
+  duration_min: number;
+  status: "completed" | "available" | "locked";
+  quiz?: QuizState;
+}
+
+export interface AssignmentDetail extends Assignment {
+  modules: { id: number; title: string; lessons: OutlineLesson[] }[];
+}
+
+export interface QuizQuestion {
+  id: number;
+  type: QuestionKind;
+  text: string;
+  points: number;
+  options: { id: number; text: string }[];
+  blanks?: number[];
+}
+
+/** single → id; multiple / ordering → id[]; fill_blanks → {номер пропуска: id} */
+export type Answer = number | number[] | Record<string, number>;
+
+export interface AttemptResult {
+  id: number;
+  score: number;
+  passed: boolean;
+  created_at: string;
+  pass_score: number;
+  attempts_left: number | null;
+  answers_revealed: boolean;
+  details: {
+    question_id: number;
+    fraction: number;
+    correct: boolean;
+    your_answer?: Answer;
+    correct_answer?: Answer;
+    explanation?: string;
+  }[];
+}
+
+export interface LessonDetail {
+  id: number;
+  title: string;
+  type: LessonKind;
+  content: string;
+  media_url: string;
+  module: string;
+  completed: boolean;
+  prev_lesson_id: number | null;
+  next_lesson_id: number | null;
+  quiz?: QuizState & { questions: QuizQuestion[]; last_attempt: AttemptResult | null };
+}
+
+export interface BusyVacation {
+  request_id: number;
+  number: string;
+  status: RequestStatus;
+  date_from: string;
+  date_to: string;
+  days: number;
+}
+
 export interface Notification {
   id: number;
   type: string;
@@ -91,7 +202,7 @@ export interface Dashboard {
   quick_services: { key: string; link: string }[];
   recent_requests: HrRequest[];
   approvals_count: number;
-  courses: { id: number; title: string; progress_pct: number; status: string }[];
+  courses: Assignment[];
   notifications: Notification[];
   unread_notifications: number;
 }

@@ -11,6 +11,7 @@ from hr_requests import state_machine
 from integrations import services as accounting
 from hr_requests.models import (
     RESERVING_STATUSES,
+    VACATION_BLOCKING_STATUSES,
     AdvanceDetails,
     HrRequest,
     RequestEvent,
@@ -45,12 +46,35 @@ def vacation_balance(employee: Employee) -> dict:
     }
 
 
-def _validate_vacation(employee: Employee, data: dict) -> int:
+def busy_vacations(employee: Employee, exclude_request_id: int | None = None):
+    """Отпуска сотрудника, дни которых уже заняты (на согласовании или утверждены)."""
+    qs = VacationDetails.objects.filter(
+        request__employee=employee, request__status__in=VACATION_BLOCKING_STATUSES
+    ).select_related("request").order_by("date_from")
+    if exclude_request_id is not None:
+        qs = qs.exclude(request_id=exclude_request_id)
+    return qs
+
+
+def _check_overlap(employee: Employee, date_from, date_to, exclude_request_id: int | None = None) -> None:
+    clash = busy_vacations(employee, exclude_request_id).filter(
+        date_from__lte=date_to, date_to__gte=date_from
+    ).first()
+    if clash:
+        r = clash.request
+        raise ValidationError({"date_from": (
+            f"Даты пересекаются с заявкой {r.number} "
+            f"({clash.date_from:%d.%m.%Y}–{clash.date_to:%d.%m.%Y}, «{r.get_status_display()}»)"
+        )})
+
+
+def _validate_vacation(employee: Employee, data: dict, exclude_request_id: int | None = None) -> int:
     date_from, date_to = data["date_from"], data["date_to"]
     if date_from < timezone.localdate():
         raise ValidationError({"date_from": "Дата начала отпуска не может быть в прошлом"})
     if date_to < date_from:
         raise ValidationError({"date_to": "Дата окончания раньше даты начала"})
+    _check_overlap(employee, date_from, date_to, exclude_request_id)
     days = (date_to - date_from).days + 1  # календарные дни
     if data.get("vacation_type", VacationType.ANNUAL) == VacationType.ANNUAL:
         available = vacation_balance(employee)["days_available"]
@@ -73,7 +97,8 @@ def _validate_advance(data: dict) -> None:
 def create_request(user, req_type: str, details: dict, as_draft: bool = False) -> HrRequest:
     if user.employee is None:
         raise PermissionDenied("Учётная запись не связана с сотрудником")
-    employee = user.employee
+    # Блокировка строки сотрудника: две одновременные заявки не проскочат проверку пересечения.
+    employee = Employee.objects.select_for_update().get(pk=user.employee_id)
 
     if req_type == RequestType.VACATION:
         days = _validate_vacation(employee, details)
@@ -119,7 +144,10 @@ def apply_transition(user, req: HrRequest, action: str, comment: str = "") -> Hr
             "date_from": req.vacation.date_from,
             "date_to": req.vacation.date_to,
             "vacation_type": req.vacation.vacation_type,
-        })
+        }, exclude_request_id=req.pk)
+    if action in (state_machine.APPROVE_MANAGER, state_machine.APPROVE_HR) and req.type == RequestType.VACATION:
+        # Повторная проверка при одобрении: даты не должны пересекаться с другими отпусками сотрудника.
+        _check_overlap(req.employee, req.vacation.date_from, req.vacation.date_to, exclude_request_id=req.pk)
 
     old_status = req.status
     req.status = new_status

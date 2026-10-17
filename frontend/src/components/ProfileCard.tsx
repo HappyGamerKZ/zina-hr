@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 
 import type { Profile } from "../api/types";
 import { fmtDate } from "../i18n";
+import { AssignmentRow } from "./academy";
 
 export default function ProfileCard({ profile }: { profile: Profile }) {
   const { t } = useTranslation();
@@ -50,6 +51,14 @@ export default function ProfileCard({ profile }: { profile: Profile }) {
             <strong>{b.days_available}</strong>
           </div>
         </div>
+      </section>
+      <section className="card">
+        <h2>{t("dashboard.learning")}</h2>
+        {profile.learning.length === 0 ? (
+          <p className="muted">{t("dashboard.no_courses")}</p>
+        ) : (
+          profile.learning.map((a) => <AssignmentRow key={a.id} a={a} />)
+        )}
       </section>
     </div>
   );

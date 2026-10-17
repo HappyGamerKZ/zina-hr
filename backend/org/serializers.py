@@ -30,17 +30,25 @@ class ProfileSerializer(serializers.ModelSerializer):
     position = serializers.CharField(source="position.title_ru")
     manager = ManagerSerializer(allow_null=True)
     vacation_balance = serializers.SerializerMethodField()
+    learning = serializers.SerializerMethodField()
 
     class Meta:
         model = Employee
         fields = [
             "id", "full_name", "company", "department", "position", "manager",
-            "hire_date", "email", "external_id", "source", "synced_at", "vacation_balance",
+            "hire_date", "email", "external_id", "source", "synced_at", "vacation_balance", "learning",
         ]
         read_only_fields = fields
 
     def get_vacation_balance(self, emp) -> VacationBalanceSerializer:
         return VacationBalanceSerializer(vacation_balance(emp)).data
+
+    def get_learning(self, emp) -> list:
+        """Jana Academy в профиле: назначенные курсы, прогресс и результат."""
+        from academy.serializers import AssignmentSerializer
+
+        assignments = emp.course_assignments.select_related("course", "employee", "assigned_by__employee")
+        return AssignmentSerializer(assignments, many=True).data
 
 
 class TeamMemberSerializer(serializers.ModelSerializer):

@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
 import type { Dashboard } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { AssignmentRow } from "../components/academy";
 import RequestList from "../components/RequestList";
 import { fmtDateTime } from "../i18n";
 
@@ -71,18 +72,14 @@ export default function DashboardPage() {
 
         <div className="stack">
           <section className="card">
-            <h2>{t("dashboard.learning")}</h2>
+            <div className="section-head">
+              <h2>{t("dashboard.learning")}</h2>
+              <Link to="/academy">→</Link>
+            </div>
             {data.courses.length === 0 ? (
               <p className="muted">{t("dashboard.no_courses")}</p>
             ) : (
-              data.courses.map((c) => (
-                <div key={c.id} className="course-row">
-                  <span>{c.title}</span>
-                  <div className="progress">
-                    <div style={{ width: `${c.progress_pct}%` }} />
-                  </div>
-                </div>
-              ))
+              data.courses.map((a) => <AssignmentRow key={a.id} a={a} />)
             )}
           </section>
 

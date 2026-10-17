@@ -4,7 +4,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { api } from "../api/client";
-import type { HrRequestDetail, Profile, RequestType } from "../api/types";
+import type { BusyVacation, HrRequestDetail, Profile, RequestType } from "../api/types";
+import VacationCalendar, { toIso } from "../components/VacationCalendar";
+import { fmtDate } from "../i18n";
 
 function daysBetween(from: string, to: string): number {
   if (!from || !to) return 0;
@@ -27,9 +29,14 @@ export default function NewRequestPage() {
   const [reason, setReason] = useState("");
 
   const profile = useQuery({ queryKey: ["profile"], queryFn: () => api<Profile>("/me/profile") });
+  const busy = useQuery({
+    queryKey: ["requests", "vacation-calendar"],
+    queryFn: () => api<BusyVacation[]>("/requests/vacation-calendar"),
+    enabled: type === "vacation",
+  });
   const available = profile.data?.vacation_balance.days_available;
   const days = daysBetween(dateFrom, dateTo);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = toIso(new Date());
 
   const create = useMutation({
     mutationFn: () =>
@@ -68,22 +75,27 @@ export default function NewRequestPage() {
 
         {type === "vacation" ? (
           <>
-            <div className="row-2">
-              <label>
-                {t("newRequest.date_from")}
-                <input type="date" min={today} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} required />
-              </label>
-              <label>
-                {t("newRequest.date_to")}
-                <input
-                  type="date"
-                  min={dateFrom || today}
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  required
-                />
-              </label>
-            </div>
+            <VacationCalendar
+              busy={busy.data ?? []}
+              from={dateFrom}
+              to={dateTo}
+              minDate={today}
+              onChange={(f, tt) => {
+                setDateFrom(f);
+                setDateTo(tt);
+              }}
+            />
+            {dateFrom && (
+              <p className="selected-range">
+                {t("newRequest.date_from")}: <strong>{fmtDate(dateFrom)}</strong>
+                {dateTo && (
+                  <>
+                    {" · "}
+                    {t("newRequest.date_to")}: <strong>{fmtDate(dateTo)}</strong>
+                  </>
+                )}
+              </p>
+            )}
             <label>
               {t("newRequest.vacation_type")}
               <select value={vacationType} onChange={(e) => setVacationType(e.target.value)}>
@@ -122,7 +134,10 @@ export default function NewRequestPage() {
 
         {create.error && <p className="error">{create.error.message}</p>}
         <div className="row">
-          <button className="btn-primary" disabled={create.isPending}>
+          <button
+            className="btn-primary"
+            disabled={create.isPending || (type === "vacation" && (!dateFrom || !dateTo))}
+          >
             {t("newRequest.submit")}
           </button>
           <button type="button" className="btn-ghost" onClick={() => navigate(-1)}>

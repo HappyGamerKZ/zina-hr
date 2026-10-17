@@ -8,7 +8,7 @@ from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from accounts.models import Role, User
-from hr_requests.models import HrRequest, Status
+from hr_requests.models import HrRequest, Status, VacationDetails
 from integrations.models import AccountingExport
 from notifications.models import Notification
 from org.models import Company, Department, Employee, LeaveBalance, Position
@@ -121,6 +121,52 @@ class ApprovalFlowTests(APITestCase):
         self.client.force_authenticate(self.hr)
         ids = [r["id"] for r in self.client.get("/api/v1/requests?scope=approvals").data]
         self.assertNotIn(req["id"], ids)
+
+    # --- занятые дни отпуска ---
+
+    def post_vacation(self, user, start_offset, days):
+        self.client.force_authenticate(user)
+        start = timezone.localdate() + timedelta(days=start_offset)
+        return self.client.post(
+            "/api/v1/requests",
+            {"type": "vacation", "vacation": {
+                "date_from": start.isoformat(),
+                "date_to": (start + timedelta(days=days - 1)).isoformat(),
+            }},
+            format="json",
+        )
+
+    def test_overlapping_vacation_rejected(self):
+        self.assertEqual(self.post_vacation(self.emp, 30, 5).status_code, 201)  # дни 30–34
+        res = self.post_vacation(self.emp, 33, 3)  # дни 33–35 пересекаются
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("пересекаются", str(res.data))
+        # соседние дни свободны
+        self.assertEqual(self.post_vacation(self.emp, 35, 2).status_code, 201)
+        # у другого сотрудника те же даты свободны
+        self.assertEqual(self.post_vacation(self.mgr, 30, 5).status_code, 201)
+
+    def test_cancelled_and_rejected_vacations_free_the_days(self):
+        req = self.post_vacation(self.emp, 30, 5).data
+        self.act(self.emp, req["id"], "cancel")
+        self.assertEqual(self.post_vacation(self.emp, 30, 5).status_code, 201)
+
+    def test_vacation_calendar_returns_only_own_busy_days(self):
+        req = self.post_vacation(self.emp, 30, 5).data
+        self.post_vacation(self.mgr, 40, 3)
+        self.client.force_authenticate(self.emp)
+        data = self.client.get("/api/v1/requests/vacation-calendar").data
+        self.assertEqual([d["request_id"] for d in data], [req["id"]])
+        self.assertEqual(data[0]["status"], Status.WAITING_MANAGER_APPROVAL)
+
+    def test_approve_blocked_if_dates_overlap(self):
+        req = self.post_vacation(self.emp, 30, 5).data
+        # пересекающаяся заявка, созданная в обход API (например, старые данные)
+        other = HrRequest.objects.create(type="vacation", employee=self.emp_emp, status=Status.APPROVED_SENT_TO_1C)
+        start = timezone.localdate() + timedelta(days=32)
+        other_vacation = VacationDetails(request=other, date_from=start, date_to=start, days=1)
+        other_vacation.save()
+        self.assertEqual(self.act(self.mgr, req["id"], "approve-manager").status_code, 400)
 
     # --- права и конфликт интересов ---
 

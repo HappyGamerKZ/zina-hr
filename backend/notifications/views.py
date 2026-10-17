@@ -17,10 +17,16 @@ class NotificationViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         items = self.get_queryset()[:50]
         return Response(self.get_serializer(items, many=True).data)
 
-    @extend_schema(responses=inline_serializer("UnreadCount", {"count": serializers.IntegerField()}))
+    @extend_schema(responses=inline_serializer("UnreadCount", {
+        "count": serializers.IntegerField(),
+        "latest_id": serializers.IntegerField(allow_null=True),
+    }))
     @action(detail=False, methods=["get"], url_path="unread-count")
     def unread_count(self, request):
-        return Response({"count": self.get_queryset().filter(is_read=False).count()})
+        """Лёгкий запрос для polling: фронт сравнивает latest_id и при изменении обновляет данные."""
+        qs = self.get_queryset()
+        latest = qs.values_list("id", flat=True).first()  # ordering: -created_at, -id
+        return Response({"count": qs.filter(is_read=False).count(), "latest_id": latest})
 
     @extend_schema(request=None, responses={204: None})
     @action(detail=True, methods=["post"])
