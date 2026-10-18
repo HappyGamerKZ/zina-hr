@@ -467,6 +467,8 @@ const ru = {
     answer_send: "Ответить",
     no_questions: "Вопросов нет",
     ai_tried: "Ответ AI Jana",
+    close: "Закрыть чат",
+    open_full: "Открыть на весь экран",
   },
 };
 

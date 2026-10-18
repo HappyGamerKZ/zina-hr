@@ -512,3 +512,22 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--primary); o
   .chat-input .btn-primary { padding: 9px 12px; }
 }
 .member-status { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+
+/* --- AI Jana: всплывающее окно чата (временно, до дизайна) --- */
+.ai-fab { border: none; cursor: pointer; padding: 0; }
+.ai-fab.open { background: var(--surface); color: var(--primary); border: 1px solid var(--border); }
+.ai-popup {
+  position: fixed; right: 24px; bottom: 92px; z-index: 30; width: 380px; height: min(560px, calc(100vh - 140px));
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 12px 32px rgba(10, 53, 0, 0.2);
+}
+.ai-popup-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.ai-popup-head .btn-small { padding: 4px 8px; }
+.chat-compact { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 0; }
+.chat-compact .chat-log { flex: 1; min-height: 0; max-height: none; padding: 12px; }
+.chat-compact .chat-input { padding: 10px 12px; }
+.chat-compact .bubble { max-width: 92%; }
+@media (max-width: 720px) {
+  .ai-popup { left: 8px; right: 8px; width: auto; bottom: 144px; height: min(70vh, calc(100vh - 220px)); }
+}

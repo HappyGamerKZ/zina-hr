@@ -469,6 +469,8 @@ const kk: Dict = {
     answer_send: "Жауап беру",
     no_questions: "Сұрақтар жоқ",
     ai_tried: "AI Jana жауабы",
+    close: "Чатты жабу",
+    open_full: "Толық экранда ашу",
   },
 };
 

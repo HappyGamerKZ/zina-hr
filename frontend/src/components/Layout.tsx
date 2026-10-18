@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import Icon from "./Icon";
 import { icons } from "./icons";
+import { AiChatProvider, AiPopup, clearStoredChats } from "./AiChat";
 import { api } from "../api/client";
 import { useLiveNotifications } from "../api/live";
 import type { Lang } from "../api/types";
@@ -25,6 +26,10 @@ export default function Layout() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const [chatOpen, setChatOpen] = useState(false); // всплывающее окно AI Jana
+  useEffect(() => {
+    if (pathname === "/ai") setChatOpen(false); // на странице чата окно не нужно
+  }, [pathname]);
  
   // Уведомления: live-поток (SSE) присылает событие сразу → перечитываем счётчик.
   // Пришло новое уведомление (изменился latest_id) — обновляем заявки, главную и список
@@ -82,6 +87,7 @@ export default function Layout() {
   };
  
   const onLogout = async () => {
+    clearStoredChats(); // переписка AI Jana не должна достаться следующему пользователю вкладки
     await logout();
     navigate("/login");
   };
@@ -89,6 +95,7 @@ export default function Layout() {
   const count = unread.data?.count ?? 0;
  
   return (
+    <AiChatProvider>
     <div className="shell">
       <aside className="sidebar">
         <div className="brand">
@@ -158,9 +165,19 @@ export default function Layout() {
           <Outlet />
         </main>
         {pathname !== "/ai" && (
-          <Link to="/ai" className="ai-fab" aria-label={t("me_card.ai_fab")} title={t("me_card.ai_fab")}>
-            <Icon src={icons.ai} size={26} />
-          </Link>
+          <>
+            {chatOpen && <AiPopup onClose={() => setChatOpen(false)} />}
+            <button
+              type="button"
+              className={`ai-fab${chatOpen ? " open" : ""}`}
+              onClick={() => setChatOpen((v) => !v)}
+              aria-expanded={chatOpen}
+              aria-label={chatOpen ? t("ai.close") : t("me_card.ai_fab")}
+              title={chatOpen ? t("ai.close") : t("me_card.ai_fab")}
+            >
+              <Icon src={chatOpen ? icons.close : icons.ai} size={26} />
+            </button>
+          </>
         )}
       </div>
  
@@ -175,5 +192,6 @@ export default function Layout() {
           ))}
       </nav>
     </div>
+    </AiChatProvider>
   );
 }
