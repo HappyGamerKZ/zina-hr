@@ -511,3 +511,4 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--primary); o
   .bubble { max-width: 95%; }
   .chat-input .btn-primary { padding: 9px 12px; }
 }
+.member-status { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px; }

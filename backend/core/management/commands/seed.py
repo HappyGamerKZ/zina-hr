@@ -27,6 +27,7 @@ from hr_requests.models import (
 from integrations.models import AccountingExport
 from integrations.services import build_accounting_payload
 from notifications.models import Notification, NotificationType
+from org.models import Delegation
 
 W_MGR, W_HR = Status.WAITING_MANAGER_APPROVAL, Status.WAITING_HR_APPROVAL
 DONE, REJ, CANC = Status.APPROVED_SENT_TO_1C, Status.REJECTED, Status.CANCELLED
@@ -174,6 +175,22 @@ class Command(BaseCommand):
             [(W_MGR, None, ""), (REJ, u["manager_service"], "В эти даты отделение работает в усиленном режиме")],
             at(today - timedelta(days=6)), vacation=(today + timedelta(days=10), today + timedelta(days=16)),
         )
+
+        # «Команда»: Ким Алина сейчас в отпуске; у manager_service утверждён отпуск через 12 дней
+        # и назначен И.О. — employee_service (его видно у CEO в «Команде»)
+        make_request(
+            e["colleague_2"], None, RequestType.VACATION,
+            [(W_MGR, None, ""), (W_HR, u["manager_logistics"], ""), (DONE, u["hr_spec_1"], "")],
+            at(today - timedelta(days=25)), vacation=(today - timedelta(days=3), today + timedelta(days=6)),
+        )
+        svc_away = (today + timedelta(days=12), today + timedelta(days=21))
+        make_request(
+            e["manager_service"], u["manager_service"], RequestType.VACATION,
+            [(W_MGR, u["manager_service"], ""), (W_HR, u["ceo"], ""), (DONE, u["hr_spec_2"], "")],
+            at(today - timedelta(days=10)), vacation=svc_away,
+        )
+        Delegation.objects.create(manager=e["manager_service"], deputy=e["employee_service"],
+                                  date_from=svc_away[0], date_to=svc_away[1], created_by=u["manager_service"])
 
         # manager_logistics: отпуск ждёт CEO; после одобрения уйдёт в общий пул HR
         mgr_vac = make_request(

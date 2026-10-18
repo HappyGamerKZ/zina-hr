@@ -1,8 +1,11 @@
+from datetime import timedelta
+
+from django.utils import timezone
 from rest_framework import serializers
 
 from hr_requests.models import HrRequest, RESERVING_STATUSES
 from hr_requests.services import vacation_balance
-from org.models import Employee
+from org.models import Delegation, Employee
 
 
 class ManagerSerializer(serializers.ModelSerializer):
@@ -56,12 +59,14 @@ class TeamMemberSerializer(serializers.ModelSerializer):
     position = serializers.CharField(source="position.title_ru")
     vacation_days_available = serializers.SerializerMethodField()
     active_requests = serializers.SerializerMethodField()
+    absence = serializers.SerializerMethodField()
+    deputy = serializers.SerializerMethodField()
 
     class Meta:
         model = Employee
         fields = [
             "id", "full_name", "department", "position", "hire_date",
-            "vacation_days_available", "active_requests",
+            "vacation_days_available", "active_requests", "absence", "deputy",
         ]
 
     def get_vacation_days_available(self, emp) -> int:
@@ -69,6 +74,39 @@ class TeamMemberSerializer(serializers.ModelSerializer):
 
     def get_active_requests(self, emp) -> int:
         return HrRequest.objects.filter(employee=emp, status__in=RESERVING_STATUSES).count()
+
+    def get_absence(self, emp) -> dict | None:
+        """Уволен, сейчас в отпуске или отпуск в ближайшие 30 дней (только утверждённые)."""
+        return team_absence(emp)
+
+    def get_deputy(self, emp) -> dict | None:
+        """И.О. на время отсутствия (или действующее сейчас замещение) — только у руководителей."""
+        absence = team_absence(emp)
+        today = timezone.localdate()
+        start, end = (absence["date_from"], absence["date_to"]) if absence and absence["date_from"] else (today, today)
+        d = (Delegation.objects.filter(manager=emp, revoked_at__isnull=True, date_from__lte=end, date_to__gte=start)
+             .select_related("deputy").order_by("date_from").first())
+        return {"id": d.deputy_id, "full_name": d.deputy.full_name, "date_from": d.date_from, "date_to": d.date_to} \
+            if d else None
+
+
+UPCOMING_DAYS = 30
+
+
+def team_absence(emp) -> dict | None:
+    """{state: dismissed | vacation | planned, date_from, date_to} или None — на месте."""
+    from hr_requests.models import RequestType, Status, VacationDetails
+
+    today = timezone.localdate()
+    if emp.dismissed_on and emp.dismissed_on <= today:
+        return {"state": "dismissed", "date_from": emp.dismissed_on, "date_to": None}
+    v = (VacationDetails.objects.filter(request__employee=emp, request__type=RequestType.VACATION,
+                                        request__status=Status.APPROVED_SENT_TO_1C, date_to__gte=today,
+                                        date_from__lte=today + timedelta(days=UPCOMING_DAYS))
+         .order_by("date_from").first())
+    if v is None:
+        return None
+    return {"state": "vacation" if v.date_from <= today else "planned", "date_from": v.date_from, "date_to": v.date_to}
 
 
 # --- замещение руководителя (И.О.) ---

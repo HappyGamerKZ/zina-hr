@@ -254,6 +254,9 @@ export interface TeamMember {
   hire_date: string;
   vacation_days_available: number;
   active_requests: number;
+  // в отпуске сейчас, отпуск в ближайшие 30 дней (утверждённый) или уволен; null — на месте
+  absence: { state: "vacation" | "planned" | "dismissed"; date_from: string; date_to: string | null } | null;
+  deputy: { id: number; full_name: string; date_from: string; date_to: string } | null; // И.О. на эти даты
 }
 
 // --- Подбор персонала ---

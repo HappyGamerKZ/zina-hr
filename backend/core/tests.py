@@ -82,3 +82,19 @@ class SeedTests(APITestCase):
         as_user("employee_service")
         self.assertEqual(self.client.get(f"/api/v1/requests/{logistics_req.id}").status_code, 404)
         self.assertEqual(self.client.get("/api/v1/team").status_code, 403)
+
+    def test_team_shows_vacation_and_deputy(self):
+        call_command("seed", reset=True, stdout=StringIO())
+
+        def team(login):
+            self.client.force_authenticate(User.objects.get(username=login))
+            return {m["full_name"]: m for m in self.client.get("/api/v1/team").data}
+
+        logistics = team("manager_logistics")
+        self.assertEqual(logistics["Ким Алина Викторовна"]["absence"]["state"], "vacation")  # сейчас в отпуске
+        self.assertIsNone(logistics["Сапарова Айгерим Нурлановна"]["absence"])  # на месте
+        board = team("ceo")
+        service = board["Жумабаева Гульнара Ахметовна"]
+        self.assertEqual(service["absence"]["state"], "planned")  # отпуск через 12 дней
+        self.assertEqual(service["deputy"]["full_name"], "Исмаилов Данияр Ерланович")
+        self.assertIsNone(board["Бекенов Ерлан Серикович"]["deputy"])
