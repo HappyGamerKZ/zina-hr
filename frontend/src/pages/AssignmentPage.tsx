@@ -44,7 +44,9 @@ export default function AssignmentPage() {
               <h1>{title(a.course)}</h1>
               {!own && <span className="muted">{a.employee.full_name}</span>}
             </div>
+            <br>
           </div>
+          
           <AssignmentBadge status={a.status} />
         </div>
         <Progress value={a.progress_pct} />
