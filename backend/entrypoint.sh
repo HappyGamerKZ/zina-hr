@@ -2,7 +2,7 @@
 set -e
 
 # Пока миграции не закоммичены, создаём их при старте (через volume они попадут в репозиторий).
-python manage.py makemigrations org accounts hr_requests notifications integrations academy recruitment --noinput
+python manage.py makemigrations org accounts hr_requests notifications integrations academy recruitment assistant --noinput
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput >/dev/null
 python manage.py seed

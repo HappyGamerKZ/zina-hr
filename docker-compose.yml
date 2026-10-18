@@ -20,6 +20,11 @@ x-backend-env: &backend-env
   DOCUMENTOLOG_TOKEN: ${DOCUMENTOLOG_TOKEN:-docflow_dev}
   DOCUMENTOLOG_WEBHOOK_SECRET: ${DOCUMENTOLOG_WEBHOOK_SECRET:-dev-webhook-secret}
   BACKEND_PUBLIC_URL: http://backend:8000
+  # AI Jana: локальная модель — сервис ollama ниже. Ollama, установленная на компьютер: http://host.docker.internal:11434
+  OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
+  OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1:8b}
+  OLLAMA_TIMEOUT: ${OLLAMA_TIMEOUT:-180}
+  AI_MIN_SCORE: ${AI_MIN_SCORE:-0.45}
 
 services:
   db:
@@ -48,6 +53,9 @@ services:
       - private:/private
     ports:
       - "8000:8000"
+    extra_hosts:
+      # доступ к Ollama, запущенной на самом компьютере (на Linux тоже)
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy
@@ -96,7 +104,31 @@ services:
     depends_on:
       - backend
 
+  # Локальная модель для AI Jana. Модель хранится в томе ollama: скачивается один раз (~4,9 ГБ)
+  # сервисом ollama-pull ниже при первом `docker compose up`, дальше берётся с диска.
+  # Без видеокарты NVIDIA модель работает на процессоре: ответ ~30–90 с, нужно ~6 ГБ памяти в Docker.
+  ollama:
+    image: ollama/ollama:0.12.6
+    environment:
+      OLLAMA_KEEP_ALIVE: 24h  # модель остаётся в памяти — без 10–20 с загрузки перед каждым ответом
+    volumes:
+      - ollama:/root/.ollama
+    ports:
+      - "11434:11434"
+
+  # Один раз скачивает модель в том ollama и завершается (если модель уже есть — сразу).
+  # Ход загрузки: docker compose logs -f ollama-pull
+  ollama-pull:
+    image: ollama/ollama:0.12.6
+    environment:
+      OLLAMA_HOST: ollama:11434
+    entrypoint: ["ollama", "pull", "${OLLAMA_MODEL:-llama3.1:8b}"]
+    depends_on:
+      - ollama
+    restart: on-failure
+
 volumes:
   pgdata:
   media:
   private:
+  ollama:

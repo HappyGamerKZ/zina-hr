@@ -15,7 +15,8 @@ import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
 import NewRequestPage from "./pages/NewRequestPage";
 import NotificationsPage from "./pages/NotificationsPage";
-import PlaceholderPage from "./pages/PlaceholderPage";
+import AiPage from "./pages/AiPage";
+import AiQuestionsPage from "./pages/AiQuestionsPage";
 import ProfilePage from "./pages/ProfilePage";
 import RecruitmentPage from "./pages/RecruitmentPage";
 import RequestDetailPage from "./pages/RequestDetailPage";
@@ -40,7 +41,6 @@ function RequirePermission({ permission, children }: { permission: string; child
 }
 
 export default function App() {
-  const { t } = useTranslation();
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
@@ -69,7 +69,8 @@ export default function App() {
         />
         <Route path="academy/assignments/:id" element={<AssignmentPage />} />
         <Route path="academy/assignments/:id/lessons/:lessonId" element={<LessonPage />} />
-        <Route path="ai" element={<PlaceholderPage title={t("nav.ai")} />} />
+        <Route path="ai" element={<AiPage />} />
+        <Route path="ai/questions" element={<AiQuestionsPage />} />
         <Route
           path="team"
           element={

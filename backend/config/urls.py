@@ -15,6 +15,7 @@ api_v1 = [
     path("", include("academy.urls")),
     path("", include("integrations.urls")),
     path("", include("recruitment.urls")),
+    path("", include("assistant.urls")),
 ]
 
 urlpatterns = [

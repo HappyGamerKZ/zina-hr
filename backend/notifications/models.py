@@ -10,6 +10,7 @@ class NotificationType(models.TextChoices):
     COURSE_FAILED = "course_failed", "Курс не сдан"
     RECRUITMENT = "recruitment", "Подбор персонала"
     HR_TICKET_ANSWERED = "hr_ticket_answered", "HR ответил на вопрос"
+    AI_QUESTION = "ai_question", "Вопрос из AI Jana"
 
 
 class Notification(models.Model):

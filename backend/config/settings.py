@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "integrations",
     "academy",
     "recruitment",
+    "assistant",
 ]
 
 MIDDLEWARE = [
@@ -127,7 +128,7 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": None,
     # Публичная форма резюме: не больше 5 отправок в час с одного IP (в каждом процессе backend)
-    "DEFAULT_THROTTLE_RATES": {"careers": "5/hour", "careers_track": "20/hour"},
+    "DEFAULT_THROTTLE_RATES": {"careers": "5/hour", "careers_track": "20/hour", "ai": "30/min"},
 }
 
 SPECTACULAR_SETTINGS = {
@@ -211,3 +212,11 @@ UNFOLD = {
         ],
     },
 }
+
+# --- AI Jana: локальная модель Ollama (assistant/llm.py) ---
+# Сервис ollama в docker compose: http://ollama:11434; Ollama, установленная на компьютер: http://host.docker.internal:11434
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://ollama:11434")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b")
+OLLAMA_TIMEOUT = float(os.environ.get("OLLAMA_TIMEOUT", "180"))  # 8B на процессоре отвечает 20–90 с
+# Порог «надёжного ответа»: доля слов вопроса, найденных в лучшем фрагменте базы (0..1)
+AI_MIN_SCORE = float(os.environ.get("AI_MIN_SCORE", "0.45"))

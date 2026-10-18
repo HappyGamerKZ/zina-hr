@@ -382,3 +382,27 @@ export interface ApplicationStatus {
   steps: { key: CandidateStage | "decision"; state: StepState; date: string | null }[];
   next_interview: { kind: "hr" | "tech"; scheduled_at: string; location: string } | null;
 }
+
+// --- AI Jana ---
+
+export interface AiAnswer {
+  answer: string;
+  lang: "ru" | "kk";
+  found: boolean; // ответ из базы знаний
+  can_escalate: boolean; // показать «Передать в HR»
+  sources: { id: string; title: string }[];
+  draft: { type: "vacation"; date_from: string; date_to: string; days: number; available: number } | null;
+}
+
+export interface AiQuestion {
+  id: number;
+  author: string;
+  question: string;
+  ai_answer: string;
+  lang: string;
+  status: "open" | "answered";
+  hr_answer: string;
+  answered_by: string | null;
+  answered_at: string | null;
+  created_at: string;
+}

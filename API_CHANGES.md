@@ -6,6 +6,24 @@
 
 ---
 
+## AI Jana (локальная модель Ollama)
+
+Новые адреса, старые не менялись. Роль и личные данные пользователя берутся из сессии — в запросе их не передавать.
+
+| Метод | Адрес | Что делает |
+|---|---|---|
+| POST | `/ai/ask` | `{question, history?}` → `{answer, lang, found, can_escalate, sources[{id, title}], draft}`. `history` — до 4 последних реплик `{role: "user" \| "assistant", content}` для уточняющих вопросов. Не больше 30 вопросов в минуту. `503 {error, can_escalate: true}` — модель недоступна (Ollama не запущена) |
+| POST | `/ai/escalate` | `{question, ai_answer?}` → `201` вопрос: «Передать в HR». HR получает уведомление (тип `ai_question`, ссылка `/ai/questions`) |
+| GET | `/ai/questions` | HR — все вопросы (сначала открытые), остальные — свои: `id, author, question, ai_answer, lang, status (open \| answered), hr_answer, answered_by, answered_at, created_at` |
+| POST | `/ai/questions/{id}/answer` | `{answer}` — только HR (на свой вопрос — нет). Сотрудник получает уведомление «HR ответил на ваш вопрос» |
+
+- `lang` — язык вопроса (`ru` / `kk`), ответ приходит на нём же; `sources[].title` — на том же языке.
+- `found = false` и `can_escalate = true` — надёжного ответа в базе нет: показать кнопку «Передать в HR».
+- `draft` — черновик заявки на отпуск из фразы вида «хочу в отпуск с 3 по 14 ноября»: `{type: "vacation", date_from, date_to, days, available}`. Заявку **не создаёт**: фронтенд по кнопке делает `POST /requests` с `as_draft: true`, сотрудник проверяет и отправляет черновик (`PATCH /requests/{id}/submit`).
+- Новый тип уведомления `ai_question`.
+
+---
+
 ## Руководитель в отпуске или уволен: И.О. и эскалация
 
 Только добавления. Кто согласует шаг руководителя, считается заново при каждой проверке:
