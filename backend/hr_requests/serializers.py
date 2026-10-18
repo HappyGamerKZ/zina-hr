@@ -1,11 +1,12 @@
 from rest_framework import serializers
 
-from hr_requests import state_machine
+from hr_requests import routing, state_machine
 from hr_requests.models import (
     AdvanceDetails,
     HrRequest,
     RequestEvent,
     RequestType,
+    Status,
     VacationDetails,
     VacationType,
 )
@@ -58,15 +59,32 @@ class HrRequestListSerializer(serializers.ModelSerializer):
 class HrRequestDetailSerializer(HrRequestListSerializer):
     events = RequestEventSerializer(many=True, read_only=True)
     allowed_actions = serializers.SerializerMethodField()
+    approver = serializers.SerializerMethodField()
 
     class Meta(HrRequestListSerializer.Meta):
         fields = HrRequestListSerializer.Meta.fields + [
             "events", "allowed_actions", "external_doc_id", "external_zup_id", "external_accounting_id",
-            "doc_status", "doc_registration_number",
+            "doc_status", "doc_registration_number", "approver",
         ]
 
     def get_allowed_actions(self, req) -> list[str]:
         return state_machine.allowed_actions(self.context["request"].user, req)
+
+    def get_approver(self, req) -> dict | None:
+        """Кто сейчас согласует шаг руководителя (только пока заявка на этом шаге)."""
+        if req.status != Status.WAITING_MANAGER_APPROVAL:
+            return None
+        route = routing.resolve_approver(req.employee)
+        if route is None:
+            return None
+
+        def short(e):
+            return {"id": e.pk, "full_name": e.full_name} if e else None
+
+        return {
+            "kind": route.kind, "employee": short(route.approver), "acting_for": short(route.acting_for),
+            "note": routing.describe(route),
+        }
 
 
 class VacationInputSerializer(serializers.Serializer):

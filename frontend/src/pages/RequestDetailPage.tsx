@@ -73,6 +73,17 @@ export default function RequestDetailPage() {
             <dt>{t("requests.employee")}</dt>
             <dd>{req.employee.full_name}</dd>
           </div>
+          {req.approver && (
+            <div>
+              <dt>{t("delegation.approver")}</dt>
+              <dd title={req.approver.note}>
+                {req.approver.employee?.full_name ?? "HR"}{" "}
+                <span className="muted small">
+                  ({t(`delegation.kind.${req.approver.kind}`, { name: req.approver.acting_for?.full_name ?? "" })})
+                </span>
+              </dd>
+            </div>
+          )}
           {req.vacation && (
             <>
               <div>

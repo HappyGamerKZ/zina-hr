@@ -49,6 +49,12 @@ class HrRequest(models.Model):
     # Приказ в Documentolog: on_signing → signed / rejected (приходит обратным вызовом). Статус заявки не меняется.
     doc_status = models.CharField("статус приказа в Documentolog", max_length=16, blank=True)
     doc_registration_number = models.CharField("рег. № приказа", max_length=64, blank=True)
+    # Кто сейчас согласует шаг руководителя (руководитель, И.О. или вышестоящий; пусто — пул HR).
+    # Обновляется при отпуске, увольнении и замещении — см. hr_requests/routing.py.
+    current_approver = models.ForeignKey(
+        Employee, verbose_name="согласующий", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    approver_kind = models.CharField("кто согласует", max_length=16, blank=True)
 
     class Meta:
         verbose_name = "заявка"

@@ -75,6 +75,31 @@ export interface HrRequestDetail extends HrRequest {
   external_doc_id: string;
   external_zup_id: string;
   external_accounting_id: string;
+  approver: RequestApprover | null; // кто сейчас согласует шаг руководителя
+}
+
+export interface RequestApprover {
+  kind: "manager" | "deputy" | "escalated" | "hr_pool";
+  employee: { id: number; full_name: string } | null; // null — общий пул HR
+  acting_for: { id: number; full_name: string } | null; // за кого действует И.О.
+  note: string;
+}
+
+export interface Delegation {
+  id: number;
+  manager: { id: number; full_name: string; position: string };
+  deputy: { id: number; full_name: string; position: string };
+  date_from: string;
+  date_to: string;
+  revoked_at: string | null;
+  state: "planned" | "active" | "finished" | "revoked";
+}
+
+export interface DelegationsInfo {
+  can_delegate: boolean;
+  candidates: { id: number; full_name: string; position: string }[];
+  delegations: Delegation[];
+  acting_for: Delegation[];
 }
 
 // --- Jana Academy ---

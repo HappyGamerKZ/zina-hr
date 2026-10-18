@@ -487,3 +487,5 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--primary); o
   .month-event { background: var(--primary); }
   .month-event.kind-tech { background: var(--info); }
 }
+.acting-notice { background: var(--info-soft); border-color: transparent; }
+.acting-notice p { margin: 0 0 4px; }

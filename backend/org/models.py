@@ -58,6 +58,7 @@ class Employee(models.Model):
     hire_date = models.DateField()
     email = models.EmailField(blank=True)
     external_id = models.CharField("табельный номер в 1С:ЗУП", max_length=64, unique=True)
+    dismissed_on = models.DateField("дата увольнения", null=True, blank=True)
     source = models.CharField(max_length=32, default="mock_zup")
     synced_at = models.DateTimeField(null=True, blank=True)
 
@@ -68,6 +69,31 @@ class Employee(models.Model):
 
     def __str__(self):
         return self.full_name
+
+
+class Delegation(models.Model):
+    """Исполняющий обязанности руководителя на время отпуска или командировки.
+
+    Пока замещение действует, заявки команды на шаге руководителя согласует И.О.
+    И.О. — сотрудник из команды руководителя (прямой подчинённый) или из того же подразделения.
+    """
+
+    manager = models.ForeignKey(Employee, verbose_name="руководитель", on_delete=models.CASCADE, related_name="delegations")
+    deputy = models.ForeignKey(Employee, verbose_name="исполняющий обязанности", on_delete=models.CASCADE,
+                               related_name="acting_for")
+    date_from = models.DateField("с")
+    date_to = models.DateField("по")
+    created_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    revoked_at = models.DateTimeField("отменено", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "замещение руководителя"
+        verbose_name_plural = "замещения руководителей"
+        ordering = ["-date_from"]
+
+    def __str__(self):
+        return f"{self.deputy} за {self.manager}: {self.date_from:%d.%m}–{self.date_to:%d.%m.%Y}"
 
 
 class LeaveBalance(models.Model):

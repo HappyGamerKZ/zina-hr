@@ -11,8 +11,12 @@ HR «Оформить приказ» (approve-hr):
     только из WAITING_HR_APPROVAL, только чужие заявки → APPROVED_SENT_TO_1C
 
 Отклонить может тот, чей сейчас шаг. Отменить — автор, пока заявку не начали согласовывать.
+
+Шаг руководителя согласует тот, кого сейчас вернёт routing.resolve_approver(): руководитель, его И.О.
+или вышестоящий, если руководитель в отпуске или уволен; если по цепочке никого нет — пул HR.
 """
 from accounts.models import Role
+from hr_requests import routing
 from hr_requests.models import HrRequest, Status
 
 SUBMIT = "submit"
@@ -40,13 +44,16 @@ def is_author(user, req: HrRequest) -> bool:
     return user.employee_id is not None and req.employee_id == user.employee_id
 
 
-def is_assigned_manager(user, req: HrRequest) -> bool:
-    """Назначенный руководитель автора заявки (а не любой руководитель)."""
-    return (
-        user.role in (Role.MANAGER, Role.HR_ADMIN)
-        and user.employee_id is not None
-        and req.employee.manager_id == user.employee_id
-    )
+def is_current_approver(user, req: HrRequest) -> bool:
+    """Тот, кто сейчас согласует шаг руководителя (а не любой руководитель): см. routing.py."""
+    if is_author(user, req):
+        return False
+    route = routing.resolve_approver(req.employee)
+    if route is None:
+        return False
+    if route.approver is None:  # по цепочке никого нет на месте — общий пул HR
+        return user.role == Role.HR_ADMIN
+    return user.employee_id == route.approver.pk
 
 
 def is_hr_processor(user, req: HrRequest) -> bool:
@@ -61,12 +68,12 @@ def next_status(user, req: HrRequest, action: str) -> str | None:
         return initial_status(req.employee)
     if action == CANCEL and s in (Status.DRAFT, Status.WAITING_MANAGER_APPROVAL) and is_author(user, req):
         return Status.CANCELLED
-    if action == APPROVE_MANAGER and s == Status.WAITING_MANAGER_APPROVAL and is_assigned_manager(user, req):
+    if action == APPROVE_MANAGER and s == Status.WAITING_MANAGER_APPROVAL and is_current_approver(user, req):
         return status_after_manager_approval(req)
     if action == APPROVE_HR and s == Status.WAITING_HR_APPROVAL and is_hr_processor(user, req):
         return Status.APPROVED_SENT_TO_1C
     if action == REJECT:
-        if s == Status.WAITING_MANAGER_APPROVAL and is_assigned_manager(user, req):
+        if s == Status.WAITING_MANAGER_APPROVAL and is_current_approver(user, req):
             return Status.REJECTED
         if s == Status.WAITING_HR_APPROVAL and is_hr_processor(user, req):
             return Status.REJECTED
@@ -75,3 +82,9 @@ def next_status(user, req: HrRequest, action: str) -> str | None:
 
 def allowed_actions(user, req: HrRequest) -> list[str]:
     return [a for a in ALL_ACTIONS if next_status(user, req, a)]
+
+def approvable_request_ids(user) -> list[int]:
+    """Заявки на шаге руководителя, которые сейчас ждут решения этого пользователя."""
+    waiting = HrRequest.objects.filter(status=Status.WAITING_MANAGER_APPROVAL).select_related("employee__manager")
+    return [r.pk for r in waiting if is_current_approver(user, r)]
+

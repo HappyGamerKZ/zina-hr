@@ -7,6 +7,7 @@ import type { Dashboard } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { AssignmentRow } from "../components/academy";
 import Avatar from "../components/Avatar";
+import { ActingNotice } from "../components/DelegationCard";
 import HrOverview from "../components/HrOverview";
 import { RecruitmentWidget } from "../components/recruitment";
 import Icon from "../components/Icon";
@@ -64,6 +65,7 @@ export default function DashboardPage() {
         </div>
       </section>
 
+      <ActingNotice />
       {hr && <HrOverview />}
 
       {can("requests.approve") && data.approvals_count > 0 && (

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { api } from "../api/client";
 import type { Profile } from "../api/types";
+import DelegationCard, { ActingNotice } from "../components/DelegationCard";
 import ProfileCard from "../components/ProfileCard";
 
 export default function ProfilePage() {
@@ -13,5 +14,11 @@ export default function ProfilePage() {
   });
   if (isLoading) return <p className="muted">{t("common.loading")}</p>;
   if (error || !data) return <p className="error">{t("common.error")}</p>;
-  return <ProfileCard profile={data} />;
+  return (
+    <div className="stack">
+      <ActingNotice />
+      <ProfileCard profile={data} />
+      <DelegationCard />
+    </div>
+  );
 }

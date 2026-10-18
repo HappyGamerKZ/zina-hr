@@ -53,6 +53,7 @@ def _snapshot_from_json(data: dict) -> ZupSnapshot:
                 tab_number=e["tab_number"], full_name=e["full_name"], department_code=e["department_code"],
                 position_code=e["position_code"], hire_date=date.fromisoformat(e["hire_date"]),
                 manager_tab_number=e.get("manager_tab_number"), email=e.get("email", ""),
+                dismissed_on=date.fromisoformat(e["dismissed_on"]) if e.get("dismissed_on") else None,
             )
             for e in data.get("employees", [])
         ],

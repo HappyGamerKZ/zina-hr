@@ -12,6 +12,7 @@ COURSE_ASSIGNED = "course_assigned"
 COURSE_COMPLETED = "course_completed"
 COURSE_FAILED = "course_failed"
 DOCUMENT_STATUS_CHANGED = "document_status_changed"
+REQUEST_REROUTED = "request_rerouted"  # сменился согласующий: отпуск, увольнение, замещение
 
 _handlers: dict[str, list[Callable]] = defaultdict(list)
 

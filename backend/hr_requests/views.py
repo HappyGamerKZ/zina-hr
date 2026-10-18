@@ -7,7 +7,7 @@ from rest_framework.response import Response
 
 from accounts.models import Role
 from hr_requests import services, state_machine
-from hr_requests.models import HrRequest, Status
+from hr_requests.models import HrRequest, RequestEvent, Status
 from hr_requests.serializers import (
     BusyVacationSerializer,
     CommentSerializer,
@@ -19,17 +19,19 @@ from org.scopes import visible_employees
 
 
 def approvals_queryset(user, qs):
-    """Заявки, которые ждут действия именно этого пользователя (зеркало state_machine)."""
-    as_manager = Q(status=Status.WAITING_MANAGER_APPROVAL, employee__manager_id=user.employee_id)
+    """Заявки, которые ждут действия именно этого пользователя (зеркало state_machine).
+
+    Шаг руководителя — по живому маршруту: свой руководитель, И.О. или вышестоящий (hr_requests/routing.py).
+    """
+    as_manager = Q(pk__in=state_machine.approvable_request_ids(user))
     if user.role == Role.HR_ADMIN:
         # «Единое окно»: все WAITING_HR_APPROVAL — общий пул, одинаково видимый любому HR
         # (hr_spec_1, hr_spec_2, head_hr). Свои заявки HR в пуле не видит.
         return qs.filter(as_manager | Q(status=Status.WAITING_HR_APPROVAL)).exclude(
             employee_id=user.employee_id
         )
-    if user.role == Role.MANAGER:
-        return qs.filter(as_manager)
-    return qs.none()
+    # руководитель, а также сотрудник-И.О. на время замещения
+    return qs.filter(as_manager)
 
 
 class HrRequestViewSet(
@@ -39,9 +41,14 @@ class HrRequestViewSet(
 
     def get_queryset(self):
         user = self.request.user
-        qs = HrRequest.objects.filter(employee__in=visible_employees(user)).select_related(
-            "employee", "vacation", "advance"
+        # видны свои, команды (руководитель), все (HR), а также заявки, которые пользователь согласует
+        # или согласовывал как И.О. или вышестоящий руководитель
+        visible = (
+            Q(employee__in=visible_employees(user))
+            | Q(pk__in=state_machine.approvable_request_ids(user))
+            | Q(pk__in=RequestEvent.objects.filter(actor=user).values("request_id"))  # уже принимал решение
         )
+        qs = HrRequest.objects.filter(visible).select_related("employee", "vacation", "advance", "current_approver")
         if self.action != "list":
             return qs.prefetch_related("events__actor__employee")
 

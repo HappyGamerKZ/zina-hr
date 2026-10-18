@@ -9,6 +9,9 @@ from django.core.management.base import BaseCommand
 from django.db import DatabaseError, close_old_connections
 
 from integrations.outbox import process_due
+from hr_requests.routing import sync_pending
+
+ROUTING_EVERY = 60  # с: начался отпуск руководителя, наступила дата увольнения, закончилось замещение
 
 
 class Command(BaseCommand):
@@ -20,6 +23,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, once=False, interval=3.0, **options):
         self.stdout.write("Outbox worker запущен")
+        last_routing = 0.0
         while True:
             close_old_connections()
             try:
@@ -28,6 +32,10 @@ class Command(BaseCommand):
                         f"{task.request.number} → {task.get_target_display()}: {task.get_status_display()}"
                         + (f" (попытка {task.attempts}: {task.last_error})" if task.last_error else "")
                     )
+                if once or time.monotonic() - last_routing >= ROUTING_EVERY:
+                    last_routing = time.monotonic()
+                    if changed := sync_pending():
+                        self.stdout.write(f"Маршрут согласования изменён у заявок: {changed}")
             except DatabaseError as exc:  # база ещё не готова (миграции идут) — подождать
                 self.stdout.write(self.style.WARNING(f"База недоступна: {exc}"))
                 time.sleep(5)

@@ -33,7 +33,8 @@ class Command(BaseCommand):
             "employees": [
                 {"tab_number": e.external_id, "full_name": e.full_name, "department_code": e.department.external_id,
                  "position_code": e.position.external_id, "hire_date": e.hire_date.isoformat(),
-                 "manager_tab_number": e.manager.external_id if e.manager else None, "email": e.email}
+                 "manager_tab_number": e.manager.external_id if e.manager else None, "email": e.email,
+                 "dismissed_on": e.dismissed_on.isoformat() if e.dismissed_on else None}
                 for e in Employee.objects.select_related("department", "position", "manager").order_by("external_id")
             ],
             "leave_balances": [

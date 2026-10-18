@@ -40,6 +40,7 @@ class ZupEmployee:
     hire_date: date
     manager_tab_number: str | None = None
     email: str = ""
+    dismissed_on: date | None = None  # дата увольнения (если уволен)
 
 
 @dataclass

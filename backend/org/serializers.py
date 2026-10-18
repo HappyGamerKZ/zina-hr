@@ -69,3 +69,27 @@ class TeamMemberSerializer(serializers.ModelSerializer):
 
     def get_active_requests(self, emp) -> int:
         return HrRequest.objects.filter(employee=emp, status__in=RESERVING_STATUSES).count()
+
+
+# --- замещение руководителя (И.О.) ---
+
+class DelegationSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    manager = ManagerSerializer()
+    deputy = ManagerSerializer()
+    date_from = serializers.DateField()
+    date_to = serializers.DateField()
+    revoked_at = serializers.DateTimeField(allow_null=True)
+    state = serializers.SerializerMethodField()  # planned | active | finished | revoked
+
+    def get_state(self, d) -> str:
+        today = self.context["today"]
+        if d.revoked_at:
+            return "revoked"
+        return "planned" if d.date_from > today else "finished" if d.date_to < today else "active"
+
+
+class DelegationInputSerializer(serializers.Serializer):
+    deputy_id = serializers.IntegerField()
+    date_from = serializers.DateField()
+    date_to = serializers.DateField()

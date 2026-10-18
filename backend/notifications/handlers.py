@@ -24,16 +24,35 @@ def _hr_users():
     return User.objects.filter(role=Role.HR_ADMIN, is_active=True)
 
 
+def _approvers(request):
+    """Кому сейчас решать на шаге руководителя: согласующий из маршрута или весь пул HR (routing.py)."""
+    if request.current_approver_id:
+        return [u for u in [_user_of(request.current_approver)] if u]
+    return list(_hr_users().exclude(employee=request.employee))
+
+
 def on_request_submitted(request, **_):
-    """Заявка ждёт руководителя → уведомление назначенному руководителю."""
+    """Заявка ждёт руководителя → уведомление тому, кто сейчас согласует (руководитель, И.О., вышестоящий)."""
     author = request.employee
-    notify(
-        _user_of(author.manager),
-        NotificationType.REQUEST_SUBMITTED,
-        f"Новая заявка {request.number}: {request.get_type_display().lower()}",
-        f"{author.full_name} отправил(а) заявку на согласование",
-        f"/requests/{request.pk}",
-    )
+    acting = " (вы исполняете обязанности руководителя)" if request.approver_kind == "deputy" else ""
+    for user in _approvers(request):
+        notify(
+            user,
+            NotificationType.REQUEST_SUBMITTED,
+            f"Новая заявка {request.number}: {request.get_type_display().lower()}",
+            f"{author.full_name} отправил(а) заявку на согласование{acting}",
+            f"/requests/{request.pk}",
+        )
+
+
+def on_request_rerouted(request, text, **_):
+    """Согласующий сменился (отпуск, увольнение, замещение) → новому согласующему и автору."""
+    link = f"/requests/{request.pk}"
+    for user in _approvers(request):
+        notify(user, NotificationType.REQUEST_SUBMITTED, f"Заявка {request.number} передана вам на согласование",
+               f"{request.employee.full_name}: {request.get_type_display().lower()}. {text}", link)
+    notify(_user_of(request.employee), NotificationType.REQUEST_STATUS_CHANGED,
+           f"Заявка {request.number}: сменился согласующий", text, link)
 
 
 def on_request_status_changed(request, old_status, actor, **_):
@@ -129,6 +148,7 @@ def on_document_status_changed(request, **_):
 def register():
     events.subscribe(events.DOCUMENT_STATUS_CHANGED, on_document_status_changed)
     events.subscribe(events.REQUEST_SUBMITTED, on_request_submitted)
+    events.subscribe(events.REQUEST_REROUTED, on_request_rerouted)
     events.subscribe(events.REQUEST_STATUS_CHANGED, on_request_status_changed)
     events.subscribe(events.COURSE_ASSIGNED, on_course_assigned)
     events.subscribe(events.COURSE_COMPLETED, on_course_completed)

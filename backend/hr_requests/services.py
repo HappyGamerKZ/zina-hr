@@ -7,7 +7,7 @@ from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from core import events
-from hr_requests import state_machine
+from hr_requests import routing, state_machine
 from integrations import outbox
 from hr_requests.models import (
     RESERVING_STATUSES,
@@ -123,6 +123,7 @@ def create_request(user, req_type: str, details: dict, as_draft: bool = False) -
     comment = ""
     if status == Status.APPROVED_SENT_TO_1C:
         comment = "Руководитель не назначен — утверждено автоматически. " + _finalize_approved(req)
+    routing.sync_request(req, notify=False)  # кто согласует: руководитель, И.О. или вышестоящий
     RequestEvent.objects.create(request=req, from_status="", to_status=status, actor=user, comment=comment)
 
     transaction.on_commit(lambda: _publish(req, old_status="", actor=user))
@@ -158,6 +159,11 @@ def apply_transition(user, req: HrRequest, action: str, comment: str = "") -> Hr
     RequestEvent.objects.create(
         request=req, from_status=old_status, to_status=new_status, actor=user, comment=comment
     )
+    if action == state_machine.SUBMIT:
+        routing.sync_request(req, notify=False)
+    if new_status == Status.APPROVED_SENT_TO_1C and req.type == RequestType.VACATION:
+        # руководитель уходит в отпуск — заявки его команды переходят к И.О. или вышестоящему
+        transaction.on_commit(routing.sync_pending)
 
     transaction.on_commit(lambda: _publish(req, old_status=old_status, actor=user))
     return req

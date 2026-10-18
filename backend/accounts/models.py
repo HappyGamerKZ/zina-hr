@@ -36,4 +36,16 @@ class User(AbstractUser):
         perms = list(ROLE_PERMISSIONS.get(self.role, []))
         if self.is_staff:  # ссылка на Django Admin — только тем, у кого есть туда доступ (ceo, head_hr)
             perms.append("hr.admin")
+        if "requests.approve" not in perms and self.employee_id and self._is_acting_manager():
+            perms.append("requests.approve")  # сотрудник — И.О. руководителя: раздел «Согласование»
         return perms
+
+    def _is_acting_manager(self) -> bool:
+        from django.utils import timezone
+
+        from org.models import Delegation
+
+        today = timezone.localdate()
+        return Delegation.objects.filter(
+            deputy_id=self.employee_id, revoked_at__isnull=True, date_from__lte=today, date_to__gte=today
+        ).exists()

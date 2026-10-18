@@ -60,7 +60,7 @@ def apply_snapshot(snap: ZupSnapshot) -> dict:
         result = _upsert(Employee, {"external_id": e.tab_number}, {
             "full_name": e.full_name, "company": company,
             "department": departments[e.department_code], "position": positions[e.position_code],
-            "hire_date": e.hire_date, "email": e.email, "source": "zup",
+            "hire_date": e.hire_date, "email": e.email, "source": "zup", "dismissed_on": e.dismissed_on,
         })
         count("employees", result)
     Employee.objects.filter(external_id__in=[e.tab_number for e in snap.employees]).update(synced_at=now)
@@ -98,6 +98,10 @@ def sync_from_zup(trigger: str = "manual") -> SyncRun:
             raise IntegrationError("Интеграция с 1С:ЗУП отключена (HRIS_PROVIDER=none)")
         run.stats = apply_snapshot(hris.fetch_snapshot())
         run.status = SyncRun.RunStatus.OK
+        # сменился руководитель или пришла дата увольнения — пересчитать согласующих
+        from hr_requests.routing import sync_pending
+
+        run.stats["rerouted_requests"] = sync_pending()
     except IntegrationError as exc:
         run.error = str(exc)
     run.finished_at = timezone.now()
