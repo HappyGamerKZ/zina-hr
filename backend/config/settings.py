@@ -131,7 +131,7 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "JanaМен API",
+    "TITLE": "Jana HR API",
     "DESCRIPTION": "Единая HR-платформа: профиль, заявки, обучение, AI Jana",
     "VERSION": "0.1.0",
 }
@@ -173,8 +173,8 @@ def _admin_link(title, icon, model):
 
 
 UNFOLD = {
-    "SITE_TITLE": "JanaМен",
-    "SITE_HEADER": "JanaМен — администрирование",
+    "SITE_TITLE": "Jana HR",
+    "SITE_HEADER": "Jana HR — администрирование",
     "SITE_SYMBOL": "badge",
     "SIDEBAR": {
         "show_search": True,

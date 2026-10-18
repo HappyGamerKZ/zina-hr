@@ -1,7 +1,7 @@
 import type { Dict } from "./ru";
 
 const kk: Dict = {
-  app: { name: "JanaHR", tagline: "Jana Post HR-платформасы" },
+  app: { name: "Jana HR", tagline: "Jana Post HR-платформасы" },
   role: { employee: "Қызметкер", manager: "Басшы", hr_admin: "HR" },
   theme: { to_dark: "Қараңғы тақырып", to_light: "Ашық тақырып" },
   nav: {
