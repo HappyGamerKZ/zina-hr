@@ -1,4 +1,4 @@
-# JanaМен — единая HR-платформа (Jana Post × Terricon Valley, Challenge 02)
+# JanaHR — единая HR-платформа (Jana Post × Terricon Valley, Challenge 02)
 
 Прототип: вход и роли → личный кабинет → заявки на отпуск / аванс → согласование → уведомления. Дальше — Jana Academy и AI Jana.
 

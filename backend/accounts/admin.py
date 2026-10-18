@@ -22,4 +22,4 @@ class JanaUserAdmin(BaseUserAdmin, ModelAdmin):
     change_password_form = AdminPasswordChangeForm
     list_display = ("username", "role", "employee", "is_active")
     list_filter = ("role", "is_active")
-    fieldsets = BaseUserAdmin.fieldsets + (("JanaМен", {"fields": ("role", "locale", "employee")}),)
+    fieldsets = BaseUserAdmin.fieldsets + (("JanaHR", {"fields": ("role", "locale", "employee")}),)

@@ -12,7 +12,7 @@ from core.demo_users import DEMO_LOGINS, DEMO_PASSWORD, create_demo_users, ensur
 
 
 class Command(BaseCommand):
-    help = "Пересоздать демо-пользователей JanaМен (CEO, руководитель, сотрудник, Head of HR, 2 HR-специалиста)"
+    help = "Пересоздать демо-пользователей JanaHR (CEO, руководитель, сотрудник, Head of HR, 2 HR-специалиста)"
 
     @transaction.atomic
     def handle(self, *args, **options):
