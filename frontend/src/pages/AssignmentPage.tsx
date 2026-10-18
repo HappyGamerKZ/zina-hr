@@ -41,6 +41,7 @@ export default function AssignmentPage() {
           <div className="row">
             <CourseCover course={a.course} big />
             <div>
+              <br />
               <h1>{title(a.course)}</h1>
               {!own && <span className="muted">{a.employee.full_name}</span>}
             </div>
@@ -48,6 +49,7 @@ export default function AssignmentPage() {
           <br />
           <AssignmentBadge status={a.status} />
         </div>
+        <br />
         <Progress value={a.progress_pct} />
         <p className="muted small">
           {t("academy.progress")}: {a.progress_pct}%
