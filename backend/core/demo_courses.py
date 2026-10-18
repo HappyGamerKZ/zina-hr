@@ -6,6 +6,9 @@
     ordering:           ("текст", N)                 — место в правильном порядке
     fill_blanks:        ("слово", N | None)          — номер пропуска {{N}} или лишнее слово
 """
+from pathlib import Path
+
+from django.core.files import File
 from django.core.files.base import ContentFile
 
 from academy.models import (
@@ -13,6 +16,7 @@ from academy.models import (
 )
 
 S, M, O, F = QuestionType.SINGLE, QuestionType.MULTIPLE, QuestionType.ORDERING, QuestionType.FILL_BLANKS
+DEMO_MEDIA_DIR = Path(__file__).resolve().parent / "demo_media"  # видео и файлы демо-уроков (в git)
 
 COURSES = [
     {
@@ -100,12 +104,15 @@ COURSES = [
         "duration_min": 20,
         "modules": [
             ("Пароли и доступы", [
-                ("Надёжный пароль", LessonType.TEXT, 5,
-                 "Правила для рабочих систем:\n\n"
-                 "• Пароль — не короче 12 символов, буквы разного регистра, цифры и знаки.\n"
-                 "• Отдельный пароль для каждой системы; храните их в менеджере паролей.\n"
-                 "• Включайте двухфакторную аутентификацию.\n"
-                 "• Пароль нельзя сообщать никому — даже руководителю или «сотруднику ИТ»."),
+                ("Надёжный пароль", LessonType.TEXT, 5, [
+                    # видео лежит в репозитории: backend/core/demo_media/infosec-overview.mp4
+                    ("video", "infosec-overview.mp4", "Рекомендации по комплексной безопасности: обзор курса"),
+                    ("text", "Правила для рабочих систем:"),
+                    ("text", "• Пароль — не короче 12 символов, буквы разного регистра, цифры и знаки.\n"
+                             "• Отдельный пароль для каждой системы; храните их в менеджере паролей.\n"
+                             "• Включайте двухфакторную аутентификацию.\n"
+                             "• Пароль нельзя сообщать никому — даже руководителю или «сотруднику ИТ»."),
+                ]),
                 ("Как распознать фишинг", LessonType.TEXT, 5,
                  "Фишинг — письмо или сообщение, которое выманивает пароль, данные карты или заставляет открыть вредоносный файл.\n\n"
                  "Признаки:\n"
@@ -214,6 +221,12 @@ def _create_blocks(lesson: Lesson, blocks: list) -> None:
         if btype == BlockType.IMAGE:
             b = LessonBlock(lesson=lesson, order=order, type=btype, text=rest[0] if rest else "")
             b.file.save(f"demo-{value}", ContentFile(DEMO_IMAGES[value].encode()), save=False)
+            b.save()
+        elif btype == BlockType.VIDEO:
+            # файл из репозитория копируется в хранилище уроков (том media), как при загрузке через админку
+            b = LessonBlock(lesson=lesson, order=order, type=btype, text=rest[0] if rest else "")
+            with open(DEMO_MEDIA_DIR / value, "rb") as fh:
+                b.file.save(f"demo-{value}", File(fh), save=False)
             b.save()
         else:
             LessonBlock.objects.create(lesson=lesson, order=order, type=btype, text=value)
