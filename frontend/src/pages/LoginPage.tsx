@@ -11,18 +11,17 @@ import TrackForm from "../components/TrackForm";
 import { setLang } from "../i18n";
 import logo from "../assets/logo.webp";
 
-// Шаги входа: выбор роли → вход (сотрудник / HR) или раздел кандидата (резюме / статус заявки).
-// Роль на экране выбора — только подсказка: права определяет учётная запись на сервере.
-type Role = "employee" | "hr" | "candidate";
+// Шаги входа: «Сотрудник» → вход (сотрудники, руководители и HR — одна форма, права определяет учётная запись
+// на сервере) или «Кандидат» → резюме / статус заявки.
+type Role = "employee" | "candidate";
 type CandidateTab = "resume" | "track";
 
 const ROLES: { key: Role; icon: string }[] = [
   { key: "employee", icon: icons.profile },
-  { key: "hr", icon: icons.employees },
   { key: "candidate", icon: icons.candidates },
 ];
 
-function SignInForm({ role }: { role: "employee" | "hr" }) {
+function SignInForm() {
   const { login } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -51,7 +50,7 @@ function SignInForm({ role }: { role: "employee" | "hr" }) {
   return (
     <form className="form" onSubmit={onSubmit}>
       <div>
-        <h1>{role === "hr" ? t("auth.login_hr") : t("auth.login_employee")}</h1>
+        <h1>{t("auth.login_employee")}</h1>
         <p className="muted">{t("login.subtitle")}</p>
       </div>
       <label>
@@ -92,9 +91,11 @@ export default function LoginPage() {
   const tabParam = params.get("tab");
   const candidateTab: CandidateTab = tabParam === "track" ? "track" : "resume";
   const role: Role | null =
-    location.pathname === "/careers" || tabParam === "resume" || tabParam === "track"
+    location.pathname === "/careers" || tabParam === "resume" || tabParam === "track" || params.get("role") === "candidate"
       ? "candidate"
-      : (params.get("role") as Role | null);
+      : params.get("role")
+        ? "employee" // в том числе старые ссылки ?role=hr
+        : null;
 
   if (me && role !== "candidate") return <Navigate to="/" replace />;
 
@@ -157,7 +158,7 @@ export default function LoginPage() {
                   {candidateTab === "resume" ? <ResumeForm /> : <TrackForm />}
                 </>
               ) : (
-                <SignInForm role={role} />
+                <SignInForm />
               )}
             </div>
           )}
