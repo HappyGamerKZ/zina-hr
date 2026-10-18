@@ -62,6 +62,8 @@ Django 5 + DRF, PostgreSQL 16 + pgvector, React + TypeScript + Vite, docker comp
 | `employee` | `demo1234` | сотрудник, отдел логистики |
 | `ceo` | `demo1234` | генеральный директор, Дирекция; руководителя нет; роль manager + Django Admin |
 | `manager_logistics` | `demo1234` | руководитель логистики → `ceo` |
+| `manager_service` | `demo1234` | руководитель клиентского сервиса → `ceo` (второй отдел — для проверки изоляции команд) |
+| `employee_service` | `demo1234` | сотрудник, клиентский сервис → `manager_service` |
 | `head_hr` | `demo1234` | Head of HR → `ceo`; HR с полным доступом |
 | `hr_spec_1`, `hr_spec_2` | `demo1234` | HR-специалисты → `head_hr`; равный доступ к общему пулу «В обработке HR» |
 

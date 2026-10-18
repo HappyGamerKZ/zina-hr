@@ -16,6 +16,8 @@ class SeedTests(APITestCase):
             "ceo": (Role.MANAGER, None),
             "manager_logistics": (Role.MANAGER, "ceo"),
             "employee": (Role.EMPLOYEE, "manager_logistics"),
+            "manager_service": (Role.MANAGER, "ceo"),
+            "employee_service": (Role.EMPLOYEE, "manager_service"),
             "head_hr": (Role.HR_ADMIN, "ceo"),
             "hr_spec_1": (Role.HR_ADMIN, "head_hr"),
             "hr_spec_2": (Role.HR_ADMIN, "head_hr"),
@@ -52,3 +54,31 @@ class SeedTests(APITestCase):
         self.client.force_authenticate(User.objects.get(username="head_hr"))
         res = self.client.patch(f"/api/v1/requests/{hr_req.id}/approve-manager", {}, format="json")
         self.assertEqual(res.data["status"], Status.APPROVED_SENT_TO_1C)
+
+    def test_seed_two_departments_are_isolated(self):
+        """Демо-сценарий 3: руководитель видит только свою команду и её заявки, чужой отдел — 404."""
+        call_command("seed", reset=True, stdout=StringIO())
+        service_req = HrRequest.objects.get(employee__user__username="employee_service",
+                                            status=Status.WAITING_MANAGER_APPROVAL)
+        logistics_req = HrRequest.objects.filter(employee__user__username="employee").first()
+
+        def as_user(login):
+            self.client.force_authenticate(User.objects.get(username=login))
+
+        as_user("manager_logistics")
+        team = {m["full_name"] for m in self.client.get("/api/v1/team").data}
+        self.assertIn("Сапарова Айгерим Нурлановна", team)
+        self.assertNotIn("Исмаилов Данияр Ерланович", team)
+        self.assertEqual(self.client.get(f"/api/v1/requests/{service_req.id}").status_code, 404)
+        service_emp = User.objects.get(username="employee_service").employee_id
+        self.assertEqual(self.client.get(f"/api/v1/team/{service_emp}").status_code, 404)
+        self.assertNotIn(service_req.id, [r["id"] for r in self.client.get("/api/v1/requests?scope=team").data])
+
+        as_user("manager_service")
+        self.assertIn(service_req.id, [r["id"] for r in self.client.get("/api/v1/requests?scope=approvals").data])
+        self.assertEqual(self.client.get(f"/api/v1/requests/{logistics_req.id}").status_code, 404)
+        self.assertEqual(len(self.client.get("/api/v1/team").data), 3)
+
+        as_user("employee_service")
+        self.assertEqual(self.client.get(f"/api/v1/requests/{logistics_req.id}").status_code, 404)
+        self.assertEqual(self.client.get("/api/v1/team").status_code, 403)

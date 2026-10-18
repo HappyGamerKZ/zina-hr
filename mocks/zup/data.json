@@ -18,6 +18,12 @@
       "parent_code": null
     },
     {
+      "code": "ZUP-DEP-020",
+      "name_ru": "Клиентский сервис",
+      "name_kk": "Клиенттік қызмет",
+      "parent_code": null
+    },
+    {
       "code": "ZUP-DEP-030",
       "name_ru": "HR",
       "name_kk": "HR",
@@ -54,6 +60,21 @@
       "code": "ZUP-POS-06",
       "title_ru": "Координатор складских операций",
       "title_kk": "Қойма операцияларының үйлестірушісі"
+    },
+    {
+      "code": "ZUP-POS-07",
+      "title_ru": "Руководитель клиентского сервиса",
+      "title_kk": "Клиенттік қызмет басшысы"
+    },
+    {
+      "code": "ZUP-POS-08",
+      "title_ru": "Оператор отделения",
+      "title_kk": "Бөлімше операторы"
+    },
+    {
+      "code": "ZUP-POS-09",
+      "title_ru": "Старший оператор отделения",
+      "title_kk": "Бөлімшенің аға операторы"
     }
   ],
   "employees": [
@@ -64,7 +85,8 @@
       "position_code": "ZUP-POS-01",
       "hire_date": "2015-01-12",
       "manager_tab_number": null,
-      "email": "t-0001@demo.janapost.test"
+      "email": "t-0001@demo.janapost.test",
+      "dismissed_on": null
     },
     {
       "tab_number": "T-0002",
@@ -73,7 +95,8 @@
       "position_code": "ZUP-POS-02",
       "hire_date": "2018-09-03",
       "manager_tab_number": "T-0001",
-      "email": "t-0002@demo.janapost.test"
+      "email": "t-0002@demo.janapost.test",
+      "dismissed_on": null
     },
     {
       "tab_number": "T-0003",
@@ -82,7 +105,8 @@
       "position_code": "ZUP-POS-03",
       "hire_date": "2016-03-11",
       "manager_tab_number": "T-0001",
-      "email": "t-0003@demo.janapost.test"
+      "email": "t-0003@demo.janapost.test",
+      "dismissed_on": null
     },
     {
       "tab_number": "T-0004",
@@ -91,7 +115,8 @@
       "position_code": "ZUP-POS-04",
       "hire_date": "2022-02-14",
       "manager_tab_number": "T-0002",
-      "email": "t-0004@demo.janapost.test"
+      "email": "t-0004@demo.janapost.test",
+      "dismissed_on": null
     },
     {
       "tab_number": "T-0005",
@@ -100,7 +125,8 @@
       "position_code": "ZUP-POS-05",
       "hire_date": "2021-08-02",
       "manager_tab_number": "T-0003",
-      "email": "t-0005@demo.janapost.test"
+      "email": "t-0005@demo.janapost.test",
+      "dismissed_on": null
     },
     {
       "tab_number": "T-0006",
@@ -109,7 +135,8 @@
       "position_code": "ZUP-POS-05",
       "hire_date": "2023-04-17",
       "manager_tab_number": "T-0003",
-      "email": "t-0006@demo.janapost.test"
+      "email": "t-0006@demo.janapost.test",
+      "dismissed_on": null
     },
     {
       "tab_number": "T-0007",
@@ -118,7 +145,8 @@
       "position_code": "ZUP-POS-04",
       "hire_date": "2023-06-01",
       "manager_tab_number": "T-0002",
-      "email": "t-0007@demo.janapost.test"
+      "email": "t-0007@demo.janapost.test",
+      "dismissed_on": null
     },
     {
       "tab_number": "T-0008",
@@ -127,7 +155,48 @@
       "position_code": "ZUP-POS-06",
       "hire_date": "2021-11-22",
       "manager_tab_number": "T-0002",
-      "email": "t-0008@demo.janapost.test"
+      "email": "t-0008@demo.janapost.test",
+      "dismissed_on": null
+    },
+    {
+      "tab_number": "T-0009",
+      "full_name": "Жумабаева Гульнара Ахметовна",
+      "department_code": "ZUP-DEP-020",
+      "position_code": "ZUP-POS-07",
+      "hire_date": "2019-05-20",
+      "manager_tab_number": "T-0001",
+      "email": "t-0009@demo.janapost.test",
+      "dismissed_on": null
+    },
+    {
+      "tab_number": "T-0010",
+      "full_name": "Исмаилов Данияр Ерланович",
+      "department_code": "ZUP-DEP-020",
+      "position_code": "ZUP-POS-08",
+      "hire_date": "2023-01-16",
+      "manager_tab_number": "T-0009",
+      "email": "t-0010@demo.janapost.test",
+      "dismissed_on": null
+    },
+    {
+      "tab_number": "T-0011",
+      "full_name": "Петрова Ольга Сергеевна",
+      "department_code": "ZUP-DEP-020",
+      "position_code": "ZUP-POS-08",
+      "hire_date": "2024-03-04",
+      "manager_tab_number": "T-0009",
+      "email": "t-0011@demo.janapost.test",
+      "dismissed_on": null
+    },
+    {
+      "tab_number": "T-0012",
+      "full_name": "Тулегенова Сабина Маратовна",
+      "department_code": "ZUP-DEP-020",
+      "position_code": "ZUP-POS-09",
+      "hire_date": "2020-10-12",
+      "manager_tab_number": "T-0009",
+      "email": "t-0012@demo.janapost.test",
+      "dismissed_on": null
     }
   ],
   "leave_balances": [
@@ -136,56 +205,84 @@
       "leave_type": "annual",
       "days_total": 24,
       "days_used": 7,
-      "as_of": "2026-10-17"
+      "as_of": "2026-10-18"
     },
     {
       "tab_number": "T-0002",
       "leave_type": "annual",
       "days_total": 24,
       "days_used": 14,
-      "as_of": "2026-10-17"
+      "as_of": "2026-10-18"
     },
     {
       "tab_number": "T-0003",
       "leave_type": "annual",
       "days_total": 24,
       "days_used": 10,
-      "as_of": "2026-10-17"
+      "as_of": "2026-10-18"
     },
     {
       "tab_number": "T-0004",
       "leave_type": "annual",
       "days_total": 24,
       "days_used": 7,
-      "as_of": "2026-10-17"
+      "as_of": "2026-10-18"
     },
     {
       "tab_number": "T-0005",
       "leave_type": "annual",
       "days_total": 24,
       "days_used": 6,
-      "as_of": "2026-10-17"
+      "as_of": "2026-10-18"
     },
     {
       "tab_number": "T-0006",
       "leave_type": "annual",
       "days_total": 24,
       "days_used": 2,
-      "as_of": "2026-10-17"
+      "as_of": "2026-10-18"
     },
     {
       "tab_number": "T-0007",
       "leave_type": "annual",
       "days_total": 24,
       "days_used": 0,
-      "as_of": "2026-10-17"
+      "as_of": "2026-10-18"
     },
     {
       "tab_number": "T-0008",
       "leave_type": "annual",
       "days_total": 24,
       "days_used": 12,
-      "as_of": "2026-10-17"
+      "as_of": "2026-10-18"
+    },
+    {
+      "tab_number": "T-0009",
+      "leave_type": "annual",
+      "days_total": 24,
+      "days_used": 9,
+      "as_of": "2026-10-18"
+    },
+    {
+      "tab_number": "T-0010",
+      "leave_type": "annual",
+      "days_total": 24,
+      "days_used": 5,
+      "as_of": "2026-10-18"
+    },
+    {
+      "tab_number": "T-0011",
+      "leave_type": "annual",
+      "days_total": 24,
+      "days_used": 0,
+      "as_of": "2026-10-18"
+    },
+    {
+      "tab_number": "T-0012",
+      "leave_type": "annual",
+      "days_total": 24,
+      "days_used": 11,
+      "as_of": "2026-10-18"
     }
   ]
 }

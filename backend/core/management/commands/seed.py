@@ -155,6 +155,26 @@ class Command(BaseCommand):
             at(today - timedelta(days=12)), vacation=(today + timedelta(days=5), today + timedelta(days=18)),
         )
 
+        # Клиентский сервис: свои заявки — их видит только manager_service (и HR), но не manager_logistics
+        svc_vac = make_request(
+            e["employee_service"], u["employee_service"], RequestType.VACATION, [(W_MGR, u["employee_service"], "")],
+            at(today - timedelta(days=1)), vacation=(today + timedelta(days=25), today + timedelta(days=34)),
+        )
+        make_request(
+            e["employee_service"], u["employee_service"], RequestType.ADVANCE,
+            [(W_MGR, u["employee_service"], ""), (W_HR, u["manager_service"], ""), (DONE, u["hr_spec_2"], "")],
+            at(today - timedelta(days=15)), advance=(70000, "Оплата аренды"),
+        )
+        make_request(
+            e["colleague_3"], None, RequestType.ADVANCE, [(W_MGR, None, "")],
+            at(today - timedelta(days=2)), advance=(40000, "Покупка учебников"),
+        )
+        make_request(
+            e["colleague_4"], None, RequestType.VACATION,
+            [(W_MGR, None, ""), (REJ, u["manager_service"], "В эти даты отделение работает в усиленном режиме")],
+            at(today - timedelta(days=6)), vacation=(today + timedelta(days=10), today + timedelta(days=16)),
+        )
+
         # manager_logistics: отпуск ждёт CEO; после одобрения уйдёт в общий пул HR
         mgr_vac = make_request(
             e["manager_logistics"], u["manager_logistics"], RequestType.VACATION,
@@ -191,6 +211,8 @@ class Command(BaseCommand):
              f"/academy/assignments/{security.pk}", 1)
         note(u["manager_logistics"], new, "Новая заявка на отпуск",
              "Омаров Тимур Асланович отправил заявку на согласование", "/team/approvals", 1)
+        note(u["manager_service"], new, f"Новая заявка {svc_vac.number}: отпуск",
+             "Исмаилов Данияр Ерланович отправил заявку на согласование", f"/requests/{svc_vac.pk}", 1)
         for hr in ("hr_spec_1", "hr_spec_2", "head_hr"):  # общий пул: уведомление получают все HR
             note(u[hr], new, "2 заявки ждут оформления приказа",
                  "Аванс: Омаров Тимур Асланович, Ким Алина Викторовна", "/team/approvals", 1)

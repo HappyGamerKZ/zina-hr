@@ -6,6 +6,9 @@
     ├── manager_logistics  (Логистика)
     │   ├── employee
     │   └── 2 сотрудника без учётной записи — для списка «Моя команда»
+    ├── manager_service  (Клиентский сервис)
+    │   ├── employee_service
+    │   └── 2 сотрудника без учётной записи
     └── head_hr  (HR)
         ├── hr_spec_1
         └── hr_spec_2
@@ -148,7 +151,30 @@ def create_demo_users() -> dict[str, Person]:
         pos("ZUP-POS-06", "Координатор складских операций", "Қойма операцияларының үйлестірушісі"),
         date(2021, 11, 22), manager=p["manager_logistics"], used_days=12,
     )
+
+    # Второй отдел — клиентский сервис: свой руководитель и команда. Руководитель логистики их данных
+    # не видит (и наоборот) — демо-сценарий 3 «доступ только к своей команде».
+    d_service = dept("ZUP-DEP-020", "Клиентский сервис", "Клиенттік қызмет")
+    p["manager_service"] = person(
+        "manager_service", Role.MANAGER, "Жумабаева Гульнара Ахметовна", d_service,
+        pos("ZUP-POS-07", "Руководитель клиентского сервиса", "Клиенттік қызмет басшысы"), date(2019, 5, 20),
+        manager=p["ceo"], used_days=9,
+    )
+    p_operator = pos("ZUP-POS-08", "Оператор отделения", "Бөлімше операторы")
+    p["employee_service"] = person(
+        "employee_service", Role.EMPLOYEE, "Исмаилов Данияр Ерланович", d_service, p_operator, date(2023, 1, 16),
+        manager=p["manager_service"], used_days=5,
+    )
+    p["colleague_3"] = person(
+        None, None, "Петрова Ольга Сергеевна", d_service, p_operator, date(2024, 3, 4), manager=p["manager_service"],
+    )
+    p["colleague_4"] = person(
+        None, None, "Тулегенова Сабина Маратовна", d_service,
+        pos("ZUP-POS-09", "Старший оператор отделения", "Бөлімшенің аға операторы"),
+        date(2020, 10, 12), manager=p["manager_service"], used_days=11,
+    )
     return p
 
 
-DEMO_LOGINS = ["ceo", "manager_logistics", "employee", "head_hr", "hr_spec_1", "hr_spec_2"]
+DEMO_LOGINS = ["ceo", "manager_logistics", "employee", "manager_service", "employee_service", "head_hr",
+               "hr_spec_1", "hr_spec_2"]

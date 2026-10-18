@@ -52,8 +52,8 @@ def create_demo_recruitment(u: dict, e: dict) -> None:
         salary_from=400_000, salary_to=520_000,
     )
     operator = Vacancy.objects.create(
-        title_ru="Оператор отделения", title_kk="Бөлімше операторы", department=e["employee"].department,
-        hiring_manager=e["manager_logistics"], description="Выдача и приём посылок, работа с клиентами.",
+        title_ru="Оператор отделения", title_kk="Бөлімше операторы", department=e["employee_service"].department,
+        hiring_manager=e["manager_service"], description="Выдача и приём посылок, работа с клиентами.",
         salary_from=250_000, salary_to=320_000, employment_type=EmploymentType.PART_TIME,
     )
     hr_vacancy = Vacancy.objects.create(
