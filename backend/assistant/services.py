@@ -7,11 +7,11 @@
 3. Иначе в модель уходят найденные фрагменты и только данные самого пользователя (остаток
    отпуска, его заявки — из системы, а не из ответа модели). Источники — статьи из контекста,
    на которые сослалась модель.
-4. Фраза вида «хочу в отпуск с 3 по 14 ноября» → черновик заявки; отправляет его только сотрудник.
+4. Фраза вида «хочу в отпуск с 3 по 14 ноября», «отпуск на следующей неделе», «аванс 50 000» →
+   черновик заявки (drafts.py); отправляет его только сотрудник.
 """
 import re
 from dataclasses import dataclass, field
-from datetime import date
 
 from django.conf import settings
 from django.db import transaction
@@ -20,6 +20,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from accounts.models import Role, User
 from assistant import kb, llm
+from assistant.drafts import advance_draft, parse_vacation_dates, vacation_draft  # noqa: F401 (parse — для тестов)
 from assistant.models import AssistantQuestion
 from hr_requests.models import HrRequest
 from hr_requests.services import vacation_balance
@@ -31,18 +32,12 @@ TEXTS = {
                    "могу передать вопрос специалисту HR, он ответит вам в уведомлениях.",
         "privacy": "Я не могу показывать данные других сотрудников: зарплату, остаток отпуска, личные данные. "
                    "Каждый видит только свои данные и то, что разрешено его роли.",
-        "draft": "Подготовила черновик заявки на отпуск: {date_from} – {date_to}, {days} дн. "
-                 "Доступно {available} дн. Проверьте и отправьте его сами — без вашего подтверждения заявка не уйдёт.",
-        "draft_short": "Недостаточно дней: запрошено {days}, доступно {available}.",
     },
     "kk": {
         "no_info": "Білім базасында бұл сұрақ бойынша сенімді ақпарат жоқ. Жауапты ойлап таппаймын — "
                    "сұрақты HR маманына бере аламын, ол сізге хабарламада жауап береді.",
         "privacy": "Басқа қызметкерлердің деректерін көрсете алмаймын: жалақы, демалыс қалдығы, жеке деректер. "
                    "Әркім тек өз деректерін және өз рөліне рұқсат етілгенді көреді.",
-        "draft": "Демалысқа өтінімнің жобасын дайындадым: {date_from} – {date_to}, {days} күн. "
-                 "Қолжетімді {available} күн. Тексеріп, өзіңіз жіберіңіз — сіздің растауыңызсыз өтінім кетпейді.",
-        "draft_short": "Күн жеткіліксіз: сұралғаны {days}, қолжетімдісі {available}.",
     },
 }
 
@@ -60,7 +55,7 @@ class Answer:
     found: bool  # ответ из базы знаний
     can_escalate: bool  # показать «Передать в HR»
     sources: list[dict] = field(default_factory=list)  # [{id, title}]
-    draft: dict | None = None  # черновик заявки на отпуск
+    draft: dict | None = None  # черновик заявки: отпуск или аванс
 
 
 def _source(article_id: str, lang: str) -> dict | None:
@@ -71,64 +66,6 @@ def _source(article_id: str, lang: str) -> dict | None:
 def _is_about_others(question: str) -> bool:
     """Просьба показать данные других людей: «зарплата коллеги», «остаток отпуска у руководителя»."""
     return bool(PRIVATE_WHAT.search(question) and PRIVATE_WHO.search(question))
-
-
-# --- черновик отпуска из фразы ---
-
-MONTHS = {
-    "январ": 1, "феврал": 2, "март": 3, "апрел": 4, "ма": 5, "июн": 6, "июл": 7, "август": 8, "сентябр": 9,
-    "октябр": 10, "ноябр": 11, "декабр": 12,
-    "қаңтар": 1, "ақпан": 2, "наурыз": 3, "сәуір": 4, "мамыр": 5, "маусым": 6, "шілде": 7, "тамыз": 8,
-    "қыркүйек": 9, "қазан": 10, "қараша": 11, "желтоқсан": 12,
-}
-MONTH_RE = "|".join(sorted(MONTHS, key=len, reverse=True))
-RANGE = re.compile(
-    rf"(\d{{1,2}})(?:-?(?:тен|ден|нан|нен|тан|дан))?(?:\s*({MONTH_RE})\w*)?\s*(?:по|до|-|–|—)?\s*"
-    rf"(\d{{1,2}})\s*({MONTH_RE})\w*",
-    re.I,
-)
-VACATION_INTENT = re.compile(r"отпуск|демалыс", re.I)
-
-
-def parse_vacation_dates(text: str, today: date | None = None) -> tuple[date, date] | None:
-    """«с 3 по 14 ноября», «3–14 ноября», «с 28 декабря по 5 января», «3-тен 14 қарашаға дейін»."""
-    if not VACATION_INTENT.search(text):
-        return None
-    m = RANGE.search(text.lower())
-    if not m:
-        return None
-    today = today or timezone.localdate()
-
-    def month(word):  # длинные основы первыми: «маусым» — июнь, а не «ма(й)»
-        return next(MONTHS[k] for k in sorted(MONTHS, key=len, reverse=True) if word.startswith(k))
-
-    end_month = month(m.group(4))
-    start_month = month(m.group(2)) if m.group(2) else end_month
-    year = today.year
-    try:
-        start = date(year, start_month, int(m.group(1)))
-        if start < today:
-            start = date(year + 1, start_month, int(m.group(1)))
-        end = date(start.year + (1 if end_month < start_month else 0), end_month, int(m.group(3)))
-    except ValueError:
-        return None
-    return (start, end) if end >= start else None
-
-
-def vacation_draft(user, question: str, lang: str) -> tuple[dict, str] | None:
-    dates = parse_vacation_dates(question)
-    if dates is None or user.employee_id is None:
-        return None
-    start, end = dates
-    days = (end - start).days + 1
-    available = vacation_balance(user.employee)["days_available"]
-    t = TEXTS[lang]
-    text = t["draft"].format(date_from=f"{start:%d.%m.%Y}", date_to=f"{end:%d.%m.%Y}", days=days, available=available)
-    if days > available:
-        text += " " + t["draft_short"].format(days=days, available=available)
-    draft = {"type": "vacation", "date_from": start.isoformat(), "date_to": end.isoformat(), "days": days,
-             "available": available}
-    return draft, text
 
 
 # --- контекст для модели ---
@@ -189,9 +126,12 @@ def ask(user, question: str, history: list[dict] | None = None) -> Answer:
         return Answer(t["privacy"], lang, found=True, can_escalate=False, sources=[s for s in src if s])
 
     drafted = vacation_draft(user, question, lang)
+    source_id = "KB-001"
+    if not drafted:
+        drafted, source_id = advance_draft(user, question, lang), "KB-003"
     if drafted:
         draft, text = drafted
-        src = _source("KB-001", lang)
+        src = _source(source_id, lang)
         return Answer(text, lang, found=True, can_escalate=False, sources=[src] if src else [], draft=draft)
 
     hits = kb.search(question, user.role, lang)

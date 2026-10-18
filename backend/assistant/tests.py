@@ -177,3 +177,66 @@ class RolePriorityTests(SimpleTestCase):
     def test_hr_gets_hr_article_for_certificate_question(self):
         self.assertEqual(kb.search("Как выдать справку сотруднику?", "hr_admin")[0].chunk.article_id, "KB-020")
         self.assertEqual(kb.search("Как заказать справку с места работы?", "employee")[0].chunk.article_id, "KB-006")
+
+
+class DraftPhraseTests(SimpleTestCase):
+    """Черновики из фразы: относительные даты, даты цифрами, аванс. «Сегодня» — воскресенье 18.10.2026."""
+
+    today = date(2026, 10, 18)
+
+    def period(self, text):
+        from assistant.drafts import parse_vacation_period
+        return parse_vacation_period(text, self.today)
+
+    def test_relative_dates(self):
+        cases = {
+            "хочу отпуск след неделю": (date(2026, 10, 19), date(2026, 10, 25), False),
+            "хочу в отпуск на следующей неделе": (date(2026, 10, 19), date(2026, 10, 25), False),
+            "отпуск на следующей неделе на 3 дня": (date(2026, 10, 19), date(2026, 10, 21), False),
+            "завтра в отпуск на 3 дня": (date(2026, 10, 19), date(2026, 10, 21), False),
+            "хочу в отпуск с понедельника": (date(2026, 10, 19), date(2026, 10, 25), True),  # 7 дней по умолчанию
+            "отпуск через неделю на две недели": (date(2026, 10, 25), date(2026, 11, 7), False),
+            "с 10 ноября на 5 дней отпуск": (date(2026, 11, 10), date(2026, 11, 14), False),
+            "келесі аптада демалысқа шыққым келеді": (date(2026, 10, 19), date(2026, 10, 25), False),
+            "ертеңнен бастап 5 күнге демалыс": (date(2026, 10, 19), date(2026, 10, 23), False),
+            "дүйсенбіден бастап демалыс": (date(2026, 10, 19), date(2026, 10, 25), True),
+        }
+        for text, expected in cases.items():
+            self.assertEqual(self.period(text), expected, text)
+
+    def test_numeric_and_day_only_dates(self):
+        cases = {
+            "отпуск с 03.11 по 14.11": (date(2026, 11, 3), date(2026, 11, 14)),
+            "отпуск 3.11.2026-14.11.2026": (date(2026, 11, 3), date(2026, 11, 14)),
+            "отпуск с 25 по 30": (date(2026, 10, 25), date(2026, 10, 30)),  # этот месяц
+            "отпуск с 5 по 9": (date(2026, 11, 5), date(2026, 11, 9)),  # 5-е уже прошло — следующий месяц
+            "3-тен 14-ке дейін демалыс": (date(2026, 11, 3), date(2026, 11, 14)),
+        }
+        for text, expected in cases.items():
+            self.assertEqual(self.period(text)[:2], expected, text)
+        for text in ["хочу в отпуск", "отпуск с 31 ноября по 2 декабря", "отпуск 3.11.2025-14.11.2025"]:
+            self.assertIsNone(self.period(text), text)
+
+    def test_advance_amount(self):
+        from assistant.drafts import parse_advance_amount
+        cases = {"хочу аванс 50 000": 50000, "аванс 50к": 50000, "аванс на 30 тыс": 30000, "50 мың аванс керек": 50000,
+                 "Когда выплачивают аванс?": None, "аванс до 10 числа": None, "аванс в 2026": None,
+                 "хочу 50000 в отпуск": None}
+        for text, expected in cases.items():
+            self.assertEqual(parse_advance_amount(text), expected, text)
+
+
+@override_settings(ADVANCE_MAX_AMOUNT=100_000)
+class AdvanceDraftApiTests(APITestCase):
+    setUpTestData = classmethod(AskApiTests.setUpTestData.__func__)  # те же пользователи, без повтора тестов AskApiTests
+    ask = AskApiTests.ask
+
+    @mock.patch("assistant.services.llm.chat")
+    def test_advance_phrase_returns_draft(self, chat):
+        res = self.ask(self.emp, "Хочу аванс 50 000")
+        self.assertEqual(res.data["draft"], {"type": "advance", "amount": 50000, "max": 100000})
+        self.assertEqual(res.data["sources"][0]["id"], "KB-003")
+        res = self.ask(self.emp, "аванс 150к")
+        self.assertIn("больше лимита", res.data["answer"])
+        chat.assert_not_called()
+        self.assertFalse(self.emp.employee.hr_requests.exists())  # заявку создаёт только сотрудник

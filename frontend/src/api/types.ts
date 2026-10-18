@@ -394,7 +394,7 @@ export interface AiAnswer {
   found: boolean; // ответ из базы знаний
   can_escalate: boolean; // показать «Передать в HR»
   sources: { id: string; title: string }[];
-  draft: { type: "vacation"; date_from: string; date_to: string; days: number; available: number } | null;
+  draft: AiVacationDraft | AiAdvanceDraft | null; // черновик заявки — создаёт и отправляет сотрудник
 }
 
 export interface AiQuestion {
@@ -408,4 +408,18 @@ export interface AiQuestion {
   answered_by: string | null;
   answered_at: string | null;
   created_at: string;
+}
+
+export interface AiVacationDraft {
+  type: "vacation";
+  date_from: string;
+  date_to: string;
+  days: number;
+  available: number;
+}
+
+export interface AiAdvanceDraft {
+  type: "advance";
+  amount: number;
+  max: number; // лимит аванса, ₸
 }

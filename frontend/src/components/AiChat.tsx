@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { api, ApiError } from "../api/client";
 import type { AiAnswer, HrRequestDetail } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
-import { fmtDate } from "../i18n";
+import { fmtDate, fmtMoney } from "../i18n";
 import Icon from "./Icon";
 import { icons } from "./icons";
 
@@ -126,7 +126,10 @@ function AssistantBubble({ m, onEscalate }: { m: ChatMessage; onEscalate: () => 
     mutationFn: () =>
       api<HrRequestDetail>("/requests", {
         method: "POST",
-        body: { type: "vacation", vacation: { date_from: draft!.date_from, date_to: draft!.date_to }, as_draft: true },
+        body:
+          draft!.type === "vacation"
+            ? { type: "vacation", vacation: { date_from: draft!.date_from, date_to: draft!.date_to }, as_draft: true }
+            : { type: "advance", advance: { amount: String(draft!.amount), reason: "" }, as_draft: true },
       }),
     onSuccess: (req) => {
       qc.invalidateQueries({ queryKey: ["requests"] });
@@ -149,12 +152,14 @@ function AssistantBubble({ m, onEscalate }: { m: ChatMessage; onEscalate: () => 
       {draft && (
         <div className="ai-draft">
           <strong>
-            {fmtDate(draft.date_from)} – {fmtDate(draft.date_to)} · {t("common.days", { count: draft.days })}
+            {draft.type === "vacation"
+              ? `${fmtDate(draft.date_from)} – ${fmtDate(draft.date_to)} · ${t("common.days", { count: draft.days })}`
+              : `${t("type.advance")}: ${fmtMoney(draft.amount)}`}
           </strong>
-          <span className="muted small">{t("ai.draft_hint")}</span>
+          <span className="muted small">{draft.type === "vacation" ? t("ai.draft_hint") : t("ai.draft_hint_advance")}</span>
           {createDraft.error && <span className="error small">{createDraft.error.message}</span>}
           <button className="btn-primary btn-small" disabled={createDraft.isPending} onClick={() => createDraft.mutate()}>
-            <Icon src={icons.vacation} size={16} />
+            <Icon src={draft.type === "vacation" ? icons.vacation : icons.advance} size={16} />
             {t("ai.draft_create")}
           </button>
         </div>
