@@ -35,7 +35,11 @@ STOPWORDS = set("""
 ROLE_BY_USER = {"employee": "employee", "manager": "manager", "hr_admin": "hr"}
 
 # одно понятие разными словами (основы по 5 букв): вопрос «про академию» находит «Jana Academy»
-SYNONYMS = {"акаде": ["acade"], "дмс": ["емс", "страх"], "больн": ["ауру"], "зарпл": ["оклад"], "отгул": ["отпус"]}
+SYNONYMS = {
+    "акаде": ["acade"], "дмс": ["емс", "страх"], "больн": ["ауру"], "зарпл": ["оклад"], "отгул": ["отпус"],
+    "выдат": ["выдан", "выдач"], "выдай": ["выдан", "выдач"],  # «выдать справку» ↔ статус «Выдано»
+}
+ROLE_BOOST = 1.3  # статьи только для руководителей / HR — выше для них: «как выдать справку» у HR — про обработку
 K1, B = 1.2, 0.75  # параметры BM25
 
 
@@ -188,6 +192,8 @@ def search(question: str, user_role: str, lang: str | None = None, top_k: int = 
             )
             if chunk.lang == lang:
                 bm25 *= 1.15
+            if "employee" not in article.roles:
+                bm25 *= ROLE_BOOST
             coverage = min(sum(idf.get(s, default_idf) for s in found) / total, 1.0)
             ranked.append((bm25, Hit(chunk, coverage)))
     ranked.sort(key=lambda x: x[0], reverse=True)

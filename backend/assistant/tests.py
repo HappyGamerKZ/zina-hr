@@ -171,3 +171,9 @@ class AskApiTests(APITestCase):
     def test_requires_login(self):
         self.client.force_authenticate(None)
         self.assertIn(self.client.post(ASK, {"question": "Как взять отпуск?"}, format="json").status_code, (401, 403))
+
+
+class RolePriorityTests(SimpleTestCase):
+    def test_hr_gets_hr_article_for_certificate_question(self):
+        self.assertEqual(kb.search("Как выдать справку сотруднику?", "hr_admin")[0].chunk.article_id, "KB-020")
+        self.assertEqual(kb.search("Как заказать справку с места работы?", "employee")[0].chunk.article_id, "KB-006")
