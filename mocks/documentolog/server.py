@@ -1,4 +1,4 @@
-"""Заглушка API Documentolog для JanaМен (только стандартная библиотека Python).
+"""Заглушка API Documentolog для JanaHR (только стандартная библиотека Python).
 
     POST /api/v1/documents       создать документ на подпись → {"id", "status": "on_signing"}
     GET  /api/v1/documents/<id>  статус документа

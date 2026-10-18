@@ -4,8 +4,8 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
-admin.site.site_header = "JanaМен — администрирование"
-admin.site.site_title = "JanaМен"
+admin.site.site_header = "JanaHR — администрирование"
+admin.site.site_title = "JanaHR"
 
 api_v1 = [
     path("", include("accounts.urls")),

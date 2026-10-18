@@ -101,7 +101,7 @@ def seed_academy(u, e, today):
 
 
 class Command(BaseCommand):
-    help = "Заполнить базу демо-данными JanaМен"
+    help = "Заполнить базу демо-данными JanaHR"
 
     def add_arguments(self, parser):
         parser.add_argument("--reset", action="store_true")

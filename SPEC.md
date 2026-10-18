@@ -1,4 +1,4 @@
-# SPEC — JanaМен (Jana Post × Terricon Valley, Challenge 02 «Digital HR»)
+# SPEC — JanaHR (Jana Post × Terricon Valley, Challenge 02 «Digital HR»)
 
 Опорный документ для разработки. Архитектура — в [ARCHITECTURE.md](ARCHITECTURE.md).
 

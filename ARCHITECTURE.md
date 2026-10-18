@@ -1,4 +1,4 @@
-# JanaМен — архитектура прототипа (Jana Post × Terricon Valley, Challenge 02 «Digital HR»)
+# JanaHR — архитектура прототипа (Jana Post × Terricon Valley, Challenge 02 «Digital HR»)
 
 Единая HR-платформа сотрудника: вход и роли → личный кабинет → заявки (отпуск / аванс) → статусы и уведомления → Jana Academy (LMS) → AI Jana (HR-ассистент по базе знаний).
 Формат: адаптивный веб-сайт (SPA), запуск одной командой `docker compose up`.

@@ -291,7 +291,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--primary); o
 .chip-ghost { opacity: 0.35; }
 .chip-overlay { box-shadow: 0 6px 18px rgba(16, 24, 40, 0.25); cursor: grabbing; }
 .blank.over, .word-bank.over { border-color: var(--primary); background: var(--primary-soft); }
-.restart-panel { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--border); }
+.restart-panel { display: flex; flex-wrap: wrap; gap: 10px; align-items:center; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--border); }
 .restart-panel label { max-width: 220px; }
 
 /* --- блоки урока --- */
