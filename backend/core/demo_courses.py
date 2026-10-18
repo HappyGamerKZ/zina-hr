@@ -14,6 +14,7 @@ from django.core.files.base import ContentFile
 from academy.models import (
     BlockType, Course, CourseModule, Lesson, LessonBlock, LessonType, Option, Question, QuestionType, Quiz,
 )
+from core.demo_courses_kk import kk
 
 S, M, O, F = QuestionType.SINGLE, QuestionType.MULTIPLE, QuestionType.ORDERING, QuestionType.FILL_BLANKS
 DEMO_MEDIA_DIR = Path(__file__).resolve().parent / "demo_media"  # видео и файлы демо-уроков (в git)
@@ -219,17 +220,19 @@ def _create_blocks(lesson: Lesson, blocks: list) -> None:
     for order, block in enumerate(blocks, start=1):
         btype, value, *rest = block
         if btype == BlockType.IMAGE:
-            b = LessonBlock(lesson=lesson, order=order, type=btype, text=rest[0] if rest else "")
+            caption = rest[0] if rest else ""
+            b = LessonBlock(lesson=lesson, order=order, type=btype, text=caption, text_kk=kk(caption))
             b.file.save(f"demo-{value}", ContentFile(DEMO_IMAGES[value].encode()), save=False)
             b.save()
         elif btype == BlockType.VIDEO:
             # файл из репозитория копируется в хранилище уроков (том media), как при загрузке через админку
-            b = LessonBlock(lesson=lesson, order=order, type=btype, text=rest[0] if rest else "")
+            caption = rest[0] if rest else ""
+            b = LessonBlock(lesson=lesson, order=order, type=btype, text=caption, text_kk=kk(caption))
             with open(DEMO_MEDIA_DIR / value, "rb") as fh:
                 b.file.save(f"demo-{value}", File(fh), save=False)
             b.save()
         else:
-            LessonBlock.objects.create(lesson=lesson, order=order, type=btype, text=value)
+            LessonBlock.objects.create(lesson=lesson, order=order, type=btype, text=value, text_kk=kk(value))
 
 
 def create_demo_courses() -> dict[str, Course]:
@@ -237,10 +240,10 @@ def create_demo_courses() -> dict[str, Course]:
     for c in COURSES:
         course = Course.objects.create(**{k: v for k, v in c.items() if k not in ("key", "modules")})
         for m_order, (m_title, lessons) in enumerate(c["modules"], start=1):
-            module = CourseModule.objects.create(course=course, order=m_order, title=m_title)
+            module = CourseModule.objects.create(course=course, order=m_order, title=m_title, title_kk=kk(m_title))
             for l_order, (title, ltype, minutes, body) in enumerate(lessons, start=1):
                 lesson = Lesson.objects.create(
-                    module=module, order=l_order, title=title, type=ltype, duration_min=minutes,
+                    module=module, order=l_order, title=title, title_kk=kk(title), type=ltype, duration_min=minutes,
                 )
                 if isinstance(body, str):
                     body = [("text", p) for p in body.split("\n\n")]  # абзацы → текстовые блоки
@@ -252,11 +255,12 @@ def create_demo_courses() -> dict[str, Course]:
                     )
                     for q_order, (qtype, text, options, explanation) in enumerate(body["questions"], start=1):
                         q = Question.objects.create(
-                            quiz=quiz, order=q_order, type=qtype, text=text, explanation=explanation
+                            quiz=quiz, order=q_order, type=qtype, text=text, text_kk=kk(text),
+                            explanation=explanation, explanation_kk=kk(explanation),
                         )
                         for opt_text, key in options:
                             Option.objects.create(
-                                question=q, text=opt_text,
+                                question=q, text=opt_text, text_kk=kk(opt_text),
                                 is_correct=key is True,
                                 # isinstance, а не «in (True, False)»: в Python 1 == True
                                 correct_position=None if isinstance(key, bool) else key,

@@ -84,6 +84,8 @@ export default function Layout() {
   const switchLang = (lang: Lang) => {
     setLang(lang);
     api("/me", { method: "PATCH", body: { locale: lang } }).catch(() => undefined);
+    // содержимое курсов приходит с сервера на языке запроса — перечитать на новом языке
+    qc.invalidateQueries({ queryKey: ["academy"] });
   };
  
   const onLogout = async () => {

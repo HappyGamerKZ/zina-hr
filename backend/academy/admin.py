@@ -33,7 +33,7 @@ def edit_link(obj, label="Открыть"):
 class ModuleInline(TabularInline):
     model = CourseModule
     extra = 0
-    fields = ("order", "title", "lessons_link")
+    fields = ("order", "title", "title_kk", "lessons_link")
     readonly_fields = ("lessons_link",)
     ordering_field = "order"
     hide_ordering_field = True
@@ -63,7 +63,7 @@ class CourseAdmin(ModelAdmin):
 class LessonInline(TabularInline):
     model = Lesson
     extra = 0
-    fields = ("order", "title", "type", "duration_min", "builder_link")
+    fields = ("order", "title", "title_kk", "type", "duration_min", "builder_link")
     readonly_fields = ("builder_link",)
     ordering_field = "order"
     hide_ordering_field = True
@@ -85,7 +85,7 @@ class CourseModuleAdmin(ModelAdmin):
 class LessonBlockInline(StackedInline):
     model = LessonBlock
     extra = 0
-    fields = ("type", "text", "file", "url", "preview")
+    fields = ("type", "text", "text_kk", "file", "url", "preview")
     readonly_fields = ("preview",)
     ordering_field = "order"
     hide_ordering_field = True
@@ -121,7 +121,7 @@ class LessonAdmin(ModelAdmin):
     list_display = ("title", "module", "type", "order", "blocks_count")
     list_filter = ("type", "module__course")
     search_fields = ("title",)
-    fields = ("module", "title", "type", "duration_min")
+    fields = ("module", "title", "title_kk", "type", "duration_min")
     inlines = [LessonBlockInline, QuizInline]
     warn_unsaved_form = True
 
@@ -135,7 +135,7 @@ class LessonAdmin(ModelAdmin):
 class QuestionInline(StackedInline):
     model = Question
     extra = 0
-    fields = ("type", "text", "points", "explanation", "options_link")
+    fields = ("type", "text", "text_kk", "points", "explanation", "explanation_kk", "options_link")
     readonly_fields = ("options_link",)
     ordering_field = "order"
     hide_ordering_field = True
@@ -154,7 +154,7 @@ class QuizAdmin(ModelAdmin):
 class OptionInline(TabularInline):
     model = Option
     extra = 2
-    fields = ("text", "is_correct", "correct_position")
+    fields = ("text", "text_kk", "is_correct", "correct_position")
 
 
 @admin.register(Question)
@@ -162,7 +162,7 @@ class QuestionAdmin(ModelAdmin):
     list_display = ("text", "type", "quiz", "order")
     list_filter = ("type", "quiz")
     fieldsets = (
-        (None, {"fields": ("quiz", "order", "type", "text", "points", "explanation")}),
+        (None, {"fields": ("quiz", "order", "type", "text", "text_kk", "points", "explanation", "explanation_kk")}),
         ("Как отмечать правильный ответ", {
             "description": (
                 "Один / несколько вариантов — галочка «верный вариант». "

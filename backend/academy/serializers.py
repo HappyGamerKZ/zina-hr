@@ -5,6 +5,7 @@ from rest_framework import serializers
 
 from academy import services
 from academy.grading import correct_answer
+from academy.i18n import tr
 from academy.models import Course, CourseAssignment, Lesson, LessonType, QuestionType, QuizAttempt
 
 BLANK_RE = re.compile(r"\{\{(\d+)\}\}")
@@ -47,9 +48,9 @@ class CourseDetailSerializer(CourseListSerializer):
         return [
             {
                 "id": m.id,
-                "title": m.title,
+                "title": tr(m, "title"),
                 "lessons": [
-                    {"id": l.id, "title": l.title, "type": l.type, "duration_min": l.duration_min}
+                    {"id": l.id, "title": tr(l, "title"), "type": l.type, "duration_min": l.duration_min}
                     for l in m.lessons.all()
                 ],
             }
@@ -123,10 +124,10 @@ class AssignmentDetailSerializer(AssignmentSerializer):
         locked = services.locked_lesson_ids(a, lessons, done)
         modules: dict[int, dict] = {}
         for lesson in lessons:
-            m = modules.setdefault(lesson.module_id, {"id": lesson.module_id, "title": lesson.module.title, "lessons": []})
+            m = modules.setdefault(lesson.module_id, {"id": lesson.module_id, "title": tr(lesson.module, "title"), "lessons": []})
             item = {
                 "id": lesson.id,
-                "title": lesson.title,
+                "title": tr(lesson, "title"),
                 "type": lesson.type,
                 "duration_min": lesson.duration_min,
                 "status": "completed" if lesson.id in done else "locked" if lesson.id in locked else "available",
@@ -140,7 +141,7 @@ class AssignmentDetailSerializer(AssignmentSerializer):
 # --- урок и тест (без правильных ответов) ---
 
 def _public_question(q, assignment_id: int) -> dict:
-    options = [{"id": o.id, "text": o.text} for o in q.options.all()]
+    options = [{"id": o.id, "text": tr(o, "text")} for o in q.options.all()]
     if q.type in (QuestionType.ORDERING, QuestionType.FILL_BLANKS):
         # стабильное перемешивание для конкретного сотрудника, чтобы порядок не прыгал при обновлении
         rnd = random.Random(assignment_id * 100_003 + q.id)
@@ -148,7 +149,7 @@ def _public_question(q, assignment_id: int) -> dict:
         rnd.shuffle(options)
         if q.type == QuestionType.ORDERING and [o["id"] for o in options] == original and len(options) > 1:
             options = options[1:] + options[:1]  # не показывать сразу правильный порядок
-    data = {"id": q.id, "type": q.type, "text": q.text, "points": q.points, "options": options}
+    data = {"id": q.id, "type": q.type, "text": tr(q, "text"), "points": q.points, "options": options}
     if q.type == QuestionType.FILL_BLANKS:
         data["blanks"] = sorted({int(n) for n in BLANK_RE.findall(q.text)})
     return data
@@ -164,7 +165,7 @@ def block_payload(block) -> dict:
     return {
         "id": block.id,
         "type": block.type,
-        "text": block.text,
+        "text": tr(block, "text"),
         "url": url,
         "file_name": block.file.name.rsplit("/", 1)[-1] if block.file else "",
         "embed_url": f"https://www.youtube-nocookie.com/embed/{match.group(1)}" if match else "",
@@ -178,10 +179,10 @@ def lesson_payload(assignment, lesson) -> dict:
     idx = ids.index(lesson.id)
     data = {
         "id": lesson.id,
-        "title": lesson.title,
+        "title": tr(lesson, "title"),
         "type": lesson.type,
         "blocks": [block_payload(b) for b in lesson.blocks.all()],
-        "module": lesson.module.title,
+        "module": tr(lesson.module, "title"),
         "completed": lesson.id in done,
         "prev_lesson_id": ids[idx - 1] if idx > 0 else None,
         "next_lesson_id": ids[idx + 1] if idx + 1 < len(ids) else None,
@@ -209,7 +210,7 @@ def attempt_payload(attempt: QuizAttempt, state: dict | None = None) -> dict:
         item = {**d, "your_answer": attempt.answers.get(str(d["question_id"]))}
         if reveal and q:
             item["correct_answer"] = correct_answer(q)
-            item["explanation"] = q.explanation
+            item["explanation"] = tr(q, "explanation")
         details.append(item)
     return {
         "id": attempt.id,

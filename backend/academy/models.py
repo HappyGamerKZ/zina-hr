@@ -9,6 +9,8 @@
 
 Правильные ответы (is_correct, correct_position) никогда не отдаются на фронт до проверки.
 """
+import re
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
@@ -53,6 +55,7 @@ class CourseModule(models.Model):
     course = models.ForeignKey(Course, verbose_name="курс", on_delete=models.CASCADE, related_name="modules")
     order = models.PositiveIntegerField("порядок", default=1)
     title = models.CharField("название", max_length=200)
+    title_kk = models.CharField("название (каз.)", max_length=200, blank=True)
 
     class Meta:
         verbose_name = "модуль"
@@ -72,6 +75,7 @@ class Lesson(models.Model):
     module = models.ForeignKey(CourseModule, verbose_name="модуль", on_delete=models.CASCADE, related_name="lessons")
     order = models.PositiveIntegerField("порядок", default=1)
     title = models.CharField("название", max_length=200)
+    title_kk = models.CharField("название (каз.)", max_length=200, blank=True)
     type = models.CharField("тип урока", max_length=8, choices=LessonType.choices, default=LessonType.TEXT)
     duration_min = models.PositiveIntegerField("длительность, мин", default=5)
 
@@ -105,6 +109,7 @@ class LessonBlock(models.Model):
     order = models.PositiveIntegerField("порядок", default=0)
     type = models.CharField("тип блока", max_length=8, choices=BlockType.choices, default=BlockType.TEXT)
     text = models.TextField("текст / подпись", blank=True)
+    text_kk = models.TextField("текст / подпись (каз.)", blank=True)
     file = models.FileField(
         "файл",
         upload_to="academy/%Y/%m/", blank=True,
@@ -157,8 +162,10 @@ class Question(models.Model):
     order = models.PositiveIntegerField("порядок", default=1)
     type = models.CharField("тип вопроса", max_length=16, choices=QuestionType.choices)
     text = models.TextField("текст вопроса", help_text="Для «слов в пропуски» пропуски обозначаются {{1}}, {{2}}, …")
+    text_kk = models.TextField("текст вопроса (каз.)", blank=True, help_text="Те же пропуски {{1}}, {{2}}, что и в русском")
     points = models.PositiveIntegerField("баллы", default=1)
     explanation = models.TextField("пояснение после проверки", blank=True)
+    explanation_kk = models.TextField("пояснение (каз.)", blank=True)
 
     class Meta:
         verbose_name = "вопрос"
@@ -168,10 +175,18 @@ class Question(models.Model):
     def __str__(self):
         return self.text[:80]
 
+    def clean(self):
+        # в казахской версии те же пропуски, что и в русской: ответы проверяются по номерам пропусков
+        if self.type == QuestionType.FILL_BLANKS and self.text_kk:
+            blanks = lambda s: sorted(re.findall(r"\{\{(\d+)\}\}", s))  # noqa: E731
+            if blanks(self.text_kk) != blanks(self.text):
+                raise ValidationError({"text_kk": "Пропуски {{N}} должны совпадать с русским текстом"})
+
 
 class Option(models.Model):
     question = models.ForeignKey(Question, verbose_name="вопрос", on_delete=models.CASCADE, related_name="options")
     text = models.CharField("текст варианта", max_length=300)
+    text_kk = models.CharField("текст варианта (каз.)", max_length=300, blank=True)
     is_correct = models.BooleanField("верный вариант", default=False, help_text="один / несколько вариантов")
     correct_position = models.PositiveIntegerField(
         "место / номер пропуска",

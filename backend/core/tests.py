@@ -98,3 +98,28 @@ class SeedTests(APITestCase):
         self.assertEqual(service["absence"]["state"], "planned")  # отпуск через 12 дней
         self.assertEqual(service["deputy"]["full_name"], "Исмаилов Данияр Ерланович")
         self.assertIsNone(board["Бекенов Ерлан Серикович"]["deputy"])
+
+    def test_course_content_in_kazakh(self):
+        """Курс на языке интерфейса (Accept-Language): название модуля, урок, текст блоков, вопросы и варианты."""
+        from django.utils import translation
+
+        from academy.models import Course, Question, QuestionType
+        from academy.serializers import _public_question
+
+        call_command("seed", reset=True, stdout=StringIO())
+        self.client.force_authenticate(User.objects.get(username="employee"))
+        course = Course.objects.get(title_ru="Информационная безопасность")
+        url = f"/api/v1/academy/courses/{course.id}"
+        ru = self.client.get(url, HTTP_ACCEPT_LANGUAGE="ru").data["modules"][0]
+        kk = self.client.get(url, HTTP_ACCEPT_LANGUAGE="kk").data["modules"][0]
+        self.assertEqual((ru["title"], ru["lessons"][0]["title"]), ("Пароли и доступы", "Надёжный пароль"))
+        self.assertEqual((kk["title"], kk["lessons"][0]["title"]), ("Құпиясөздер және қолжетімділік", "Сенімді құпиясөз"))
+
+        q = Question.objects.get(quiz__lesson__module__course=course, type=QuestionType.FILL_BLANKS)
+        with translation.override("kk"):
+            data = _public_question(q, assignment_id=1)
+        self.assertIn("{{2}} қосыңыз", data["text"])
+        self.assertEqual(data["blanks"], [1, 2, 3])  # пропуски те же, проверка по номерам не меняется
+        self.assertIn("ешкімге", {o["text"] for o in data["options"]})
+        with translation.override("ru"):
+            self.assertIn("никому", {o["text"] for o in _public_question(q, assignment_id=1)["options"]})
